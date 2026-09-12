@@ -53,9 +53,7 @@ export const CheckoutPage: React.FC = () => {
     if (code === 'APPLEMY' || code === 'TRX2026') {
       setAppliedVoucher({ code, discount: 50 });
       setVoucherCode('');
-    } else {
-      setVoucherError('Invalid promo voucher code.');
-    }
+    } else setVoucherError('Invalid promo voucher code.');
   };
 
   const handlePlaceOrder = async () => {
@@ -63,20 +61,8 @@ export const CheckoutPage: React.FC = () => {
     const phone = address.phone.trim();
     if (!phone) { alert('Phone is required to place an order'); return; }
     if (deliveryType === 'delivery' && !hasAddress) { alert('Please complete your delivery address before placing the order'); return; }
-    const order: Order = {
-      id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod,
-      deliveryType, shippingMethod: activeShippingMethod, shippingAddress: { ...address, phone },
-      storeLocation: deliveryType === 'pickup' ? STORE_LOCATION : undefined, status: 'order_placed',
-      createdAt: new Date().toISOString(),
-      estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days'
-    };
-    try {
-      const created = await addOrder(order);
-      clearCart();
-      navigate(`/tracking/${created.id}`);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to place order');
-    }
+    const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType, shippingMethod: activeShippingMethod, shippingAddress: { ...address, phone }, storeLocation: deliveryType === 'pickup' ? STORE_LOCATION : undefined, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days' };
+    try { const created = await addOrder(order); clearCart(); navigate(`/tracking/${created.id}`); } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
   };
 
   if (cart.length === 0) return <StandalonePage title="Checkout"><div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto"><div className="w-16 h-16 bg-[#f5f5f7] rounded-full flex items-center justify-center text-gray-400 mb-4"><ShoppingBag size={28} /></div><h3 className="text-base font-semibold text-[#1d1d1f] mb-1">Your Bag is Empty</h3><p className="text-xs text-[#86868b] max-w-[240px] mb-6">Please add items to your bag before proceeding to checkout.</p><button type="button" onClick={() => navigate('/products')} className="px-5 py-2.5 bg-[#0071e3] text-white text-xs font-semibold rounded-full">Browse Apple Store</button></div></StandalonePage>;
@@ -90,6 +76,7 @@ export const CheckoutPage: React.FC = () => {
       </> : <section className="bg-white p-4 rounded-2xl border border-black/5"><div className="text-xs font-semibold">Pickup Store</div><div className="text-xs text-[#424245]">Apple The Exchange TRX<br />Persiaran TRX, Tun Razak Exchange, 55188 Kuala Lumpur</div><div className="mt-2 text-xs font-semibold">RM0 · Same day / subject to store readiness</div></section>}
       <section className="bg-white p-4 rounded-2xl border border-black/5"><div className="text-xs font-semibold">Payment</div><div className="grid grid-cols-2 gap-2 mt-2"><button type="button" onClick={() => setPaymentMethod('duitnow_qr')} className={`p-3 rounded-xl border text-xs ${paymentMethod === 'duitnow_qr' ? 'border-[#0071e3] bg-blue-50' : 'border-gray-200'}`}>DuitNow QR</button><button type="button" onClick={() => setPaymentMethod('bank_transfer')} className={`p-3 rounded-xl border text-xs ${paymentMethod === 'bank_transfer' ? 'border-[#0071e3] bg-blue-50' : 'border-gray-200'}`}>Bank Transfer</button></div></section>
       <section className="bg-white p-4 rounded-2xl border border-black/5"><form onSubmit={handleApplyVoucher} className="flex gap-2"><input value={voucherCode} onChange={e => setVoucherCode(e.target.value)} placeholder="Voucher code" className="flex-1 p-2.5 rounded-xl border text-xs" /><button className="px-4 rounded-xl bg-black text-white text-xs"><Tag size={14} className="inline mr-1" />Apply</button></form>{voucherError && <p className="text-xs text-red-600 mt-2">{voucherError}</p>}</section>
+      <section className="bg-white p-4 rounded-2xl border border-black/5"><div className="text-xs font-semibold mb-3">Order Summary</div><div className="space-y-2 text-xs"><div className="flex justify-between"><span className="text-[#86868b]">Subtotal</span><span>RM{subtotal.toLocaleString()}</span></div><div className="flex justify-between"><span className="text-[#86868b]">Shipping Fee</span><span>RM{shippingFee.toLocaleString()}</span></div><div className="flex justify-between"><span className="text-[#86868b]">Discount</span><span>-RM{discount.toLocaleString()}</span></div><div className="pt-2 mt-2 border-t border-black/5 flex justify-between font-semibold"><span>Total</span><span>RM{finalTotal.toLocaleString()}</span></div></div></section>
     </div>
   </StandalonePage>;
 };
