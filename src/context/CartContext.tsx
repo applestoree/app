@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CartItem, Order } from '../types/cart.ts';
 import { Product, ProductColor, ProductSize } from '../types/product.ts';
 import { appleApi } from '../services/appleApi.ts';
+import { useAuth } from './AuthContext.tsx';
 
 interface CartContextType {
   cart: CartItem[];
@@ -40,6 +41,7 @@ const mapOrder = (o: any): Order => ({
 });
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>(() => { try { const saved = localStorage.getItem('apple_my_cart'); return saved ? JSON.parse(saved) : []; } catch { return []; } });
   const [orders, setOrders] = useState<Order[]>(() => { try { const saved = localStorage.getItem('apple_my_orders'); return saved ? JSON.parse(saved) : []; } catch { return []; } });
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -47,13 +49,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { try { localStorage.setItem('apple_my_orders', JSON.stringify(orders)); } catch {} }, [orders]);
 
   const refreshOrders = async () => {
+    const phone = user?.phone;
+    if (!phone) return;
     try {
-      const raw = localStorage.getItem(USER_KEY); const user = raw ? JSON.parse(raw) : null;
-      if (!user?.phone) return;
-      const result = await appleApi.getOrders(user.phone); setOrders((result.data || []).map(mapOrder));
+      const result = await appleApi.getOrders(phone);
+      setOrders((result.data || []).map(mapOrder));
     } catch {}
   };
-  useEffect(() => { void refreshOrders(); }, []);
+  useEffect(() => { void refreshOrders(); }, [user?.phone]);
 
   const addToCart = (product: Product, color: ProductColor, size: ProductSize, quantity = 1) => setCart(prev => {
     const itemId = `${product.item_group_id}-${color.color}-${size.size}`; const existing = prev.find(item => item.id === itemId);
@@ -66,9 +69,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const subtotal = cart.reduce((sum, item) => { const sale = item.selectedSize.sale_price; const price = sale !== undefined && sale !== null && !isNaN(Number(sale)) && Number(sale) > 0 ? Number(sale) : Number(item.selectedSize.price) || 0; return sum + price * item.quantity; }, 0);
 
   const addOrder = async (order: Order): Promise<Order> => {
-    const raw = localStorage.getItem(USER_KEY); const user = raw ? JSON.parse(raw) : null;
-    if (!user?.phone) throw new Error('Please login before placing an order');
-    const payload = { phone: user.phone, items: order.items, address: order.shippingAddress, store: order.storeLocation ? { location: order.storeLocation } : null, shipping: { method: order.deliveryType, estimated_delivery: order.estimatedDelivery }, voucher: order.discount ? { discount: order.discount } : null, payment: { method: order.paymentMethod }, subtotal: order.subtotal, shipping_fee: order.shippingFee, discount: order.discount, total: order.total, status: 'pending' };
+    const phone = user?.phone || order.shippingAddress.phone?.trim();
+    if (!phone) throw new Error('Phone is required to place an order');
+    const payload = { phone, items: order.items, address: { ...order.shippingAddress, phone }, store: order.storeLocation ? { location: order.storeLocation } : null, shipping: { method: order.deliveryType, estimated_delivery: order.estimatedDelivery }, voucher: order.discount ? { discount: order.discount } : null, payment: { method: order.paymentMethod }, subtotal: order.subtotal, shipping_fee: order.shippingFee, discount: order.discount, total: order.total, status: 'pending' };
     const result = await appleApi.createOrder(payload); const created = mapOrder(result.data); setOrders(prev => [created, ...prev]); return created;
   };
 
