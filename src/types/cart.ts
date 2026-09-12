@@ -22,6 +22,8 @@ export type PaymentMethod = 'bank_transfer' | 'duitnow_qr';
 
 export type DeliveryType = 'delivery' | 'pickup';
 
+export type ShippingMethod = 'store_pickup' | 'same_day' | 'standard' | 'east_malaysia';
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -31,6 +33,7 @@ export interface Order {
   total: number;
   paymentMethod: PaymentMethod;
   deliveryType: DeliveryType;
+  shippingMethod: ShippingMethod;
   shippingAddress: ShippingAddress;
   storeLocation?: string;
   status: 'order_placed' | 'processing' | 'shipped' | 'out_for_delivery' | 'delivered';
