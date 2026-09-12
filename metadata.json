@@ -1,0 +1,10 @@
+{
+  "name": "Remix Apple Store Malaysia",
+  "description": "Mobile-only ecommerce app for Apple Store Malaysia featuring genuine Apple products, categories, flash sales, and seamless shopping.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
