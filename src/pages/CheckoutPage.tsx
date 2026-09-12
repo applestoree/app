@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { Order, PaymentMethod, DeliveryType, ShippingAddress } from '../types/cart.ts';
 import { getStates, getCities, getPostcodes } from 'malaysia-postcodes';
 import { DeliveryAddressMap, ResolvedAddressResult } from '../components/DeliveryAddressMap.tsx';
-import { MapPin, Store, Truck, Tag, CreditCard, QrCode, Building2, Check, ChevronRight, ChevronLeft, ShieldCheck, ShoppingBag, Home, Briefcase } from 'lucide-react';
+import { MapPin, Store, Truck, Tag, ChevronRight, ShoppingBag } from 'lucide-react';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +15,13 @@ export const CheckoutPage: React.FC = () => {
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
   const [address, setAddress] = useState<ShippingAddress>({ fullName: user?.name || '', phone: user?.phone || '', street: '', city: '', state: '', postcode: '', country: 'Malaysia' });
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [addressTag, setAddressTag] = useState<'Home' | 'Office'>('Home');
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount: number } | null>(null);
+  const [voucherError, setVoucherError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('duitnow_qr');
+  const discount = appliedVoucher ? appliedVoucher.discount : 0;
+  const shippingFee = 0;
+  const finalTotal = Math.max(0, subtotal - discount + shippingFee);
   const hasAddress = Boolean(address.fullName.trim() || address.street.trim() || address.city.trim() || address.state.trim() || address.postcode.trim());
   const statesList = getStates();
   const citiesList = address.state ? getCities(address.state) : [];
@@ -25,19 +31,13 @@ export const CheckoutPage: React.FC = () => {
   const handlePostcodeChange = (newPostcode: string) => setAddress(prev => ({ ...prev, postcode: newPostcode }));
   const handleAddressResolvedFromMap = (resolved: ResolvedAddressResult) => setAddress(prev => ({ ...prev, street: resolved.street || prev.street, state: resolved.state || prev.state, city: resolved.city || prev.city, postcode: resolved.postcode || prev.postcode }));
   const storeLocation = 'Apple The Exchange TRX, L2-40, Persiaran TRX, 55188 Kuala Lumpur';
-  const [voucherCode, setVoucherCode] = useState('');
-  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount: number } | null>(null);
-  const [voucherError, setVoucherError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('duitnow_qr');
-  const [selectedBank, setSelectedBank] = useState('Maybank2u');
-  const discount = appliedVoucher ? appliedVoucher.discount : 0;
-  const shippingFee = 0;
-  const finalTotal = Math.max(0, subtotal - discount + shippingFee);
   const handleApplyVoucher = (e: React.FormEvent) => { e.preventDefault(); setVoucherError(''); const code = voucherCode.trim().toUpperCase(); if (!code) return; if (code === 'APPLEMY' || code === 'TRX2026') { setAppliedVoucher({ code, discount: 50 }); setVoucherCode(''); } else setVoucherError('Invalid promo voucher code.'); };
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
-    if (!user) { navigate('/auth'); return; }
-    const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType, shippingAddress: address, storeLocation: deliveryType === 'pickup' ? storeLocation : undefined, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: '2 - 4 Business Days' };
+    const phone = address.phone.trim();
+    if (!phone) { alert('Phone is required to place an order'); return; }
+    if (deliveryType === 'delivery' && !address.fullName.trim()) { alert('Full name is required for delivery'); return; }
+    const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType, shippingAddress: { ...address, phone }, storeLocation: deliveryType === 'pickup' ? storeLocation : undefined, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: '2 - 4 Business Days' };
     try { const created = await addOrder(order); clearCart(); navigate(`/tracking/${created.id}`); } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
   };
 
