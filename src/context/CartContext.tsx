@@ -22,7 +22,6 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-const USER_KEY = 'apple_auth_user';
 
 const mapOrder = (o: any): Order => ({
   id: o.id,
@@ -32,7 +31,8 @@ const mapOrder = (o: any): Order => ({
   discount: Number(o.discount || 0),
   total: Number(o.total || 0),
   paymentMethod: o.payment?.method || 'bank_transfer',
-  deliveryType: o.shipping?.method || 'delivery',
+  deliveryType: o.shipping?.method === 'store_pickup' ? 'pickup' : 'delivery',
+  shippingMethod: o.shipping?.shipping_method || (o.shipping?.method === 'pickup' ? 'store_pickup' : o.shipping?.method || 'standard'),
   shippingAddress: o.address || { fullName: '', phone: '', street: '', city: '', state: '', postcode: '', country: 'Malaysia' },
   storeLocation: o.store?.location,
   status: o.status === 'pending' ? 'order_placed' : o.status,
@@ -71,7 +71,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addOrder = async (order: Order): Promise<Order> => {
     const phone = user?.phone || order.shippingAddress.phone?.trim();
     if (!phone) throw new Error('Phone is required to place an order');
-    const payload = { phone, items: order.items, address: { ...order.shippingAddress, phone }, store: order.storeLocation ? { location: order.storeLocation } : null, shipping: { method: order.deliveryType, estimated_delivery: order.estimatedDelivery }, voucher: order.discount ? { discount: order.discount } : null, payment: { method: order.paymentMethod }, subtotal: order.subtotal, shipping_fee: order.shippingFee, discount: order.discount, total: order.total, status: 'pending' };
+    const payload = {
+      phone,
+      items: order.items,
+      address: { ...order.shippingAddress, phone },
+      store: order.storeLocation ? { location: order.storeLocation } : null,
+      shipping: { method: order.deliveryType, shipping_method: order.shippingMethod, estimated_delivery: order.estimatedDelivery },
+      voucher: order.discount ? { discount: order.discount } : null,
+      payment: { method: order.paymentMethod },
+      subtotal: order.subtotal,
+      shipping_fee: order.shippingFee,
+      discount: order.discount,
+      total: order.total,
+      status: 'pending'
+    };
     const result = await appleApi.createOrder(payload); const created = mapOrder(result.data); setOrders(prev => [created, ...prev]); return created;
   };
 
