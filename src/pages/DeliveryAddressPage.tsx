@@ -48,7 +48,6 @@ const resolveNearestMissingFields = async (resolved: ResolvedAddressResult): Pro
 
   const result: ResolvedAddressResult = { ...resolved };
 
-  // Use the nearest administrative result for missing city/state values.
   if (needsCity || needsState) {
     const administrative = await reverseNearest(resolved.lat, resolved.lon, 10);
     const admin = administrative?.address;
@@ -58,7 +57,6 @@ const resolveNearestMissingFields = async (resolved: ResolvedAddressResult): Pro
     }
   }
 
-  // Use the nearest detailed result for a missing postcode.
   if (needsPostcode) {
     const detailed = await reverseNearest(resolved.lat, resolved.lon, 18);
     result.postcode = result.postcode || detailed?.address?.postcode || '';
@@ -103,7 +101,7 @@ export const DeliveryAddressPage: React.FC = () => {
       return;
     }
 
-    navigate('/checkout', { replace: true, state: { address } });
+    navigate('/checkout', { replace: true, state: { address });
   };
 
   return (
@@ -122,8 +120,8 @@ export const DeliveryAddressPage: React.FC = () => {
         </div>
       }
     >
-      <div className="flex-1 p-4 pb-6 space-y-3">
-        <section className="bg-white p-4 rounded-2xl border border-black/5 space-y-2">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+        <section className="shrink-0 bg-white px-4 py-3 space-y-2">
           <input
             value={address.fullName}
             onChange={(e) => update('fullName', e.target.value)}
@@ -146,7 +144,9 @@ export const DeliveryAddressPage: React.FC = () => {
           />
         </section>
 
-        <DeliveryAddressMap onAddressResolved={handleAddressResolved} />
+        <div className="flex-1 min-h-0 w-full overflow-hidden">
+          <DeliveryAddressMap onAddressResolved={handleAddressResolved} />
+        </div>
       </div>
     </StandalonePage>
   );
