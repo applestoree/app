@@ -8,30 +8,24 @@ import { ProfilePage } from './pages/ProfilePage.tsx';
 import { DetailProductPage } from './pages/DetailProductPage.tsx';
 import { CheckoutPage } from './pages/CheckoutPage.tsx';
 import { TrackingPage } from './pages/TrackingPage.tsx';
+import { AuthPage } from './pages/AuthPage.tsx';
 import { CartOverlay } from './overlays/CartOverlay.tsx';
 
 export default function App() {
   return (
     <CartProvider>
       <BrowserRouter>
-        {/* Global Cart Overlay Drawer */}
         <CartOverlay />
-
-        {/* Routes configuration */}
         <Routes>
-          {/* AppShell routes (with Header, Content, BottomNav) */}
           <Route element={<AppShell />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
-
-          {/* Standalone pages (no BottomNav) */}
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/product/:id" element={<DetailProductPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/tracking/:id" element={<TrackingPage />} />
-
-          {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
