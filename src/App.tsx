@@ -8,6 +8,7 @@ import { ProductPage } from './pages/ProductPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { DetailProductPage } from './pages/DetailProductPage.tsx';
 import { CheckoutPage } from './pages/CheckoutPage.tsx';
+import { DeliveryAddressPage } from './pages/DeliveryAddressPage.tsx';
 import { TrackingPage } from './pages/TrackingPage.tsx';
 import { AuthPage } from './pages/AuthPage.tsx';
 import { CartOverlay } from './overlays/CartOverlay.tsx';
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/product/:id" element={<DetailProductPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/delivery-address" element={<DeliveryAddressPage />} />
             <Route path="/tracking/:id" element={<TrackingPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
