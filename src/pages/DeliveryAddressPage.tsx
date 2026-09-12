@@ -53,17 +53,17 @@ export const DeliveryAddressPage: React.FC = () => {
 
   return (
     <StandalonePage title="Delivery Address" footer={
-      <div className="w-full bg-white/95 backdrop-blur-md border-t border-black/5 p-3 px-4 shrink-0">
+      <div className="flex w-full flex-col bg-white/95 backdrop-blur-md border-t border-black/5 p-3 px-4 shrink-0">
         <button type="button" onClick={handleSave} disabled={!hasAddress} className="w-full p-3 bg-[#0071e3] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl">Save Address</button>
       </div>
     }>
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-        <section className="shrink-0 bg-white px-4 py-3 space-y-2">
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="flex shrink-0 flex-col gap-2 bg-white px-4 py-3">
           <input value={address.fullName} onChange={(e) => update('fullName', e.target.value)} placeholder="Full name" className="w-full p-3 rounded-xl border text-xs" />
           <input value={address.phone} onChange={(e) => update('phone', e.target.value)} placeholder="Phone" className="w-full p-3 rounded-xl border text-xs" />
           <input value={address.street} readOnly placeholder="Address" className="w-full p-3 rounded-xl border text-xs bg-[#f5f5f7] text-[#1d1d1f]" />
-        </section>
-        <div className="flex-1 min-h-0 w-full overflow-hidden">
+        </div>
+        <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
           <DeliveryAddressMap onAddressResolved={handleAddressResolved} />
         </div>
       </div>
