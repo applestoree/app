@@ -41,7 +41,7 @@ export function AdminPage() {
   const updateProduct = async () => { try { const value = JSON.parse(productJson); if (!value.item_group_id) throw new Error('item_group_id is required'); await adminApi.updateProduct(value.item_group_id, value); setProductJson(''); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Invalid product JSON'); } };
 
   return (
-    <main className="w-full min-h-full bg-gray-50 flex flex-col">
+    <main className="w-full max-w-[500px] mx-auto min-h-full bg-gray-50 flex flex-col">
       <div className="w-full flex-1 overflow-y-auto pb-8 p-4">
         <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold text-gray-900">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div><button onClick={() => void load()} disabled={busy} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">{busy ? 'Loading…' : 'Refresh'}</button></div>
         {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
