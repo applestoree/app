@@ -69,6 +69,40 @@ export const CheckoutPage: React.FC = () => {
 
   return <StandalonePage title="Checkout" footer={<div id="checkout-bottom-bar" className="w-full bg-white/95 backdrop-blur-md border-t border-black/5 p-3 px-4 flex items-center justify-between select-none shrink-0"><div><div className="text-[10px] uppercase font-semibold text-[#86868b]">Total to Pay</div><div className="text-lg font-bold text-[#1d1d1f]">RM{(finalTotal || 0).toLocaleString()}</div></div><button type="button" id="place-order-btn" onClick={handlePlaceOrder} className="px-6 py-3 bg-[#0071e3] text-white text-xs font-semibold rounded-xl">Place Order <ChevronRight size={15} className="inline" /></button></div>}>
     <div className="flex-1 pb-6 space-y-3 p-4">
+      <section className="bg-white p-4 rounded-2xl border border-black/5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs font-semibold">Cart</div>
+          <div className="text-[10px] text-[#86868b]">{cart.reduce((total, item) => total + item.quantity, 0)} items</div>
+        </div>
+        <div className="space-y-3">
+          {cart.map(item => {
+            const unitPrice = item.selectedSize.sale_price != null && Number(item.selectedSize.sale_price) > 0
+              ? Number(item.selectedSize.sale_price)
+              : Number(item.selectedSize.price) || 0;
+            const originalPrice = Number(item.selectedSize.price) || 0;
+            const itemSubtotal = unitPrice * item.quantity;
+            return (
+              <div key={item.id} className="flex gap-3 py-1">
+                <img src={item.selectedColor.image_link} alt={item.product.title} className="w-20 h-20 rounded-xl object-contain bg-[#f5f5f7] shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-[#1d1d1f] line-clamp-2">{item.product.title}</div>
+                  <div className="text-[10px] text-[#86868b] mt-1">{item.selectedColor.color} · {item.selectedSize.size}</div>
+                  <div className="flex items-end justify-between gap-2 mt-2">
+                    <div>
+                      <div className="text-[10px] text-[#86868b]">Qty {item.quantity}</div>
+                      <div className="text-xs font-semibold">
+                        {item.selectedSize.sale_price != null && Number(item.selectedSize.sale_price) > 0 && originalPrice > unitPrice && <span className="line-through text-[#86868b] mr-1">RM{originalPrice.toLocaleString()}</span>}
+                        RM{unitPrice.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold whitespace-nowrap">RM{itemSubtotal.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       <section className="bg-white p-3.5 rounded-2xl border border-black/5"><div className="text-[10px] uppercase font-semibold text-[#86868b] tracking-wider mb-2">Fulfillment Method</div><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setDeliveryType('delivery'); setShippingMethod('standard'); }} className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 ${deliveryType === 'delivery' ? 'border-[#0071e3] bg-blue-50/40 text-[#0071e3] font-semibold' : 'border-gray-200 text-[#1d1d1f]'}`}><Truck size={16} />Delivery</button><button type="button" onClick={() => { setDeliveryType('pickup'); setShippingMethod('store_pickup'); }} className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 ${deliveryType === 'pickup' ? 'border-[#0071e3] bg-blue-50/40 text-[#0071e3] font-semibold' : 'border-gray-200 text-[#1d1d1f]'}`}><Store size={16} />Store Pickup</button></div></section>
       {deliveryType === 'delivery' ? <>
         <section className="bg-white p-4 rounded-2xl border border-black/5 space-y-3"><div className="flex justify-between items-center"><div className="flex items-center gap-2.5"><MapPin size={16} className="text-[#0071e3]" /><div><div className="text-xs font-semibold">Delivery Address</div><div className="text-[10px] text-[#86868b]">Malaysia delivery</div></div></div><button type="button" onClick={() => navigate('/delivery-address', { state: { address } })} className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#0071e3] bg-blue-50">{hasAddress ? 'Change' : 'Add Address'}</button></div><div onClick={() => navigate('/delivery-address', { state: { address } })} className="text-xs cursor-pointer">{hasAddress ? <><div className="font-semibold">{address.fullName} <span className="font-normal text-[#86868b]">{address.phone}</span></div><div>{address.street}</div><div>{[address.city, address.postcode, address.state].filter(Boolean).join(', ')}</div><div className="text-[11px] text-[#86868b]">Malaysia</div></> : <div className="py-3 px-4 bg-[#f5f5f7] rounded-xl text-center">No complete delivery address added yet</div>}</div></section>
