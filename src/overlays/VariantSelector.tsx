@@ -202,9 +202,9 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
                             className={`text-[11px] truncate w-full text-center mt-1.5 leading-tight ${
                               isSelected ? 'text-[#0071e3] font-semibold' : 'text-[#1d1d1f] font-medium'
                             }`}
-                            title={`Case ${caseName}`}
+                            title={caseName}
                           >
-                            Case {caseName}
+                            {caseName}
                           </span>
                         </div>
                       );
@@ -263,9 +263,9 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
                             className={`text-[11px] truncate w-full text-center mt-1.5 leading-tight ${
                               isSelected ? 'text-[#0071e3] font-semibold' : 'text-[#1d1d1f] font-medium'
                             }`}
-                            title={`Strap ${strapName}`}
+                            title={strapName}
                           >
-                            Strap {strapName}
+                            {strapName}
                           </span>
                         </div>
                       );
@@ -352,7 +352,8 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
                         ? 'border-[#0071e3] bg-blue-50/40 text-[#0071e3] ring-1 ring-[#0071e3]/30 font-semibold'
                         : 'border-gray-200 bg-white hover:border-gray-300 text-[#1d1d1f]'
                     }`}
-                    title={`${sz.size} - RM${priceValue.toLocaleString()}`}
+                    title={`${sz.size} - RM${priceValue.toLocaleString()}`
+                    }
                   >
                     <div className="flex items-center justify-center w-full">
                       <span className="text-xs font-semibold truncate leading-tight">{sz.size}</span>
@@ -374,47 +375,38 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
         {/* Quantity selector */}
         <div className="flex items-center justify-between pt-2">
           <span className="text-xs font-semibold text-[#1d1d1f]">Quantity</span>
-          <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50/70 p-1">
+          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
             <button
               type="button"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-              className="p-1 text-gray-600 disabled:text-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
+              onClick={() => setQuantity(q => Math.max(1, q - 1))}
+              className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-50"
             >
               <Minus size={14} />
             </button>
-            <span className="text-xs font-bold px-3 text-[#1d1d1f]">{quantity}</span>
+            <span className="w-9 text-center text-xs font-semibold">{quantity}</span>
             <button
               type="button"
-              onClick={() => setQuantity((q) => q + 1)}
-              className="p-1 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+              onClick={() => setQuantity(q => q + 1)}
+              className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-50"
             >
               <Plus size={14} />
             </button>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2 pt-3">
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-2 pt-2">
           <button
             type="button"
             onClick={() => handleAction('cart')}
-            className={`py-3 px-4 rounded-xl text-xs font-semibold border transition-all ${
-              mode === 'cart'
-                ? 'bg-[#1d1d1f] text-white border-[#1d1d1f]'
-                : 'bg-white text-[#1d1d1f] border-gray-300 hover:bg-gray-50'
-            }`}
+            className="py-3 rounded-xl border border-[#0071e3] text-[#0071e3] text-xs font-semibold"
           >
             Add to Bag
           </button>
           <button
             type="button"
             onClick={() => handleAction('buy')}
-            className={`py-3 px-4 rounded-xl text-xs font-semibold transition-all ${
-              mode === 'buy'
-                ? 'bg-[#0071e3] text-white hover:bg-[#0077ed]'
-                : 'bg-[#0071e3] text-white hover:bg-[#0077ed]'
-            }`}
+            className="py-3 rounded-xl bg-[#0071e3] text-white text-xs font-semibold"
           >
             Buy Now
           </button>
