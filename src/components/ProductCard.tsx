@@ -103,10 +103,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Price */}
           <PriceDisplay price={price} salePrice={salePrice} size={compact ? 'sm' : 'md'} />
 
-          {/* Rating & Reviews */}
+          {/* Rating left & Reviews right */}
           {!compact && product.rating && (
-            <div className="mt-2">
-              <RatingStars rating={product.rating} reviews={product.reviews} />
+            <div className="mt-2 flex items-center justify-between">
+              <RatingStars rating={product.rating} showReviews={false} />
+              <span className="text-[#86868b] text-[11px]">
+                {product.reviews?.count ?? product.rating.count ?? 0} reviews
+              </span>
             </div>
           )}
         </div>
