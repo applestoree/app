@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { StandalonePage } from '../layouts/StandalonePage.tsx';
 import { ShippingAddress } from '../types/cart.ts';
 import { DeliveryAddressMap, ResolvedAddressResult } from '../components/DeliveryAddressMap.tsx';
+import { PhoneInput } from '../components/PhoneInput.tsx';
 
 const EMPTY_ADDRESS: ShippingAddress = { fullName: '', phone: '', street: '', city: '', state: '', postcode: '', country: 'Malaysia' };
 
@@ -60,7 +61,7 @@ export const DeliveryAddressPage: React.FC = () => {
       <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="flex shrink-0 flex-col gap-2 bg-white px-4 py-3">
           <input value={address.fullName} onChange={(e) => update('fullName', e.target.value)} placeholder="Full name" className="w-full p-3 rounded-xl border text-xs" />
-          <input value={address.phone} onChange={(e) => update('phone', e.target.value)} placeholder="Phone" className="w-full p-3 rounded-xl border text-xs" />
+          <PhoneInput value={address.phone} onChange={(value) => update('phone', value)} placeholder="Phone number" />
           <input value={address.street} readOnly placeholder="Address" className="w-full p-3 rounded-xl border text-xs bg-[#f5f5f7] text-[#1d1d1f]" />
         </div>
         <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
