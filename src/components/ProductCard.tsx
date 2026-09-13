@@ -100,15 +100,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div>
-          {/* Rating */}
+          {/* Price */}
+          <PriceDisplay price={price} salePrice={salePrice} size={compact ? 'sm' : 'md'} />
+
+          {/* Rating & Reviews */}
           {!compact && product.rating && (
-            <div className="mb-2">
+            <div className="mt-2">
               <RatingStars rating={product.rating} reviews={product.reviews} />
             </div>
           )}
-
-          {/* Price */}
-          <PriceDisplay price={price} salePrice={salePrice} size={compact ? 'sm' : 'md'} />
         </div>
       </div>
     </div>
