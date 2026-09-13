@@ -75,7 +75,7 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
 }
 
 export function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [view, setView] = useState<AdminView>('dashboard');
   const [products, setProducts] = useState<any[]>([]); const [orders, setOrders] = useState<any[]>([]); const [users, setUsers] = useState<any[]>([]); const [reviews, setReviews] = useState<any[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm()); const [editing, setEditing] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
@@ -91,8 +91,8 @@ export function AdminPage() {
 
   const productPage = view === 'products';
   return <main className="w-full max-w-[500px] mx-auto h-full min-h-[100dvh] bg-gray-50 flex flex-col">
-    {productPage && <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs text-gray-500">Admin / Products</p><h1 className="text-lg font-semibold text-gray-900">Product CRUD</h1></div><button type="button" onClick={() => { setForm(emptyForm()); setEditing(false); }} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">New</button></div></header>}
-    {!productPage && <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between"><div><h1 className="text-xl font-semibold">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div><button onClick={() => void load()} disabled={busy} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">{busy ? 'Loading…' : 'Refresh'}</button></div></header>}
+    {productPage && <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs text-gray-500">Admin / Products</p><h1 className="text-lg font-semibold text-gray-900">Product CRUD</h1></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setForm(emptyForm()); setEditing(false); }} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">New</button><button type="button" onClick={logout} className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-600">Logout</button></div></div></header>}
+    {!productPage && <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div><div className="flex items-center gap-2"><button onClick={() => void load()} disabled={busy} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">{busy ? 'Loading…' : 'Refresh'}</button><button type="button" onClick={logout} className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-600">Logout</button></div></div></header>}
     {error && <div className="w-full shrink-0 px-4 pt-3"><div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div></div>}
     <div className="w-full flex-1 min-h-0 overflow-y-auto p-4 pb-6">
       {view === 'dashboard' && <section className="space-y-4"><div className="grid grid-cols-2 gap-3"><Card label="Products" value={stats.products} /><Card label="Orders" value={stats.orders} /><Card label="Users" value={stats.users} /><Card label="Reviews" value={stats.reviews} /></div><Section title="Overview"><p className="text-sm text-gray-500">Manage products, orders, users and reviews from the admin views.</p></Section></section>}
