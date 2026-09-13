@@ -4,6 +4,7 @@ import { StandalonePage } from '../layouts/StandalonePage.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { appleApi } from '../services/appleApi.ts';
 import { normalizePhone } from '../utils/phone.ts';
+import { PhoneInput } from '../components/PhoneInput.tsx';
 
 const DEFAULT_AVATAR = 'https://cdn.pixabay.com/photo/2021/11/24/05/19/user-6820232_1280.png';
 type Step = 'phone' | 'login' | 'register';
@@ -48,7 +49,7 @@ export const AuthPage: React.FC = () => {
   return <StandalonePage title={step === 'phone' ? 'Sign In' : step === 'login' ? 'Welcome Back' : 'Create Account'}>
     {step === 'phone' && <form onSubmit={checkPhone} className="p-4 space-y-3">
       <div><h2 className="text-lg font-bold">Continue with phone</h2><p className="text-xs text-gray-500 mt-1">We'll check your account first.</p></div>
-      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" type="tel" required className="w-full p-3 rounded-xl border" />
+      <PhoneInput value={phone} onChange={setPhone} placeholder="Phone number" required />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button disabled={loading} className="w-full p-3 rounded-xl bg-black text-white font-semibold disabled:opacity-50">{loading ? 'Checking...' : 'Continue'}</button>
     </form>}
