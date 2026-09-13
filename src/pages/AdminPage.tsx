@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { adminApi } from '../services/adminApi.ts';
+import { BottomNav } from '../components/BottomNav.tsx';
 
 type Tab = 'dashboard' | 'products' | 'orders' | 'users' | 'reviews';
 const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
@@ -63,8 +64,8 @@ export function AdminPage() {
   };
 
   return (
-    <main className="min-h-full bg-gray-50 p-4">
-      <div className="mx-auto w-full max-w-[500px] pb-8">
+    <main className="min-h-full bg-gray-50 flex flex-col">
+      <div className="mx-auto w-full max-w-[500px] flex-1 pb-8 p-4">
         <div className="flex items-center justify-between gap-3">
           <div><h1 className="text-xl font-semibold text-gray-900">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div>
           <button onClick={() => void load()} disabled={busy} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">{busy ? 'Loading…' : 'Refresh'}</button>
@@ -97,6 +98,9 @@ export function AdminPage() {
         {tab === 'users' && <section className="mt-5 space-y-3">{users.map((u) => <div key={u.phone} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4"><div><p className="font-medium">{u.name || u.phone}</p><p className="text-xs text-gray-500">{u.phone}</p></div><select value={u.role || 'customer'} onChange={async (e) => { try { await adminApi.updateUserRole(u.phone, e.target.value); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Role update failed'); } }} className="rounded-lg border border-gray-200 px-2 py-1 text-sm"><option value="customer">customer</option><option value="admin">admin</option></select></div>)}</section>}
 
         {tab === 'reviews' && <section className="mt-5 space-y-3">{reviews.map((r) => <div key={r.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.name} · {r.rating}/5</p><p className="mt-1 text-sm text-gray-600">{r.comment}</p><p className="mt-1 text-xs text-gray-400">{r.item_group_id} · {r.phone}</p></div><button onClick={async () => { if (window.confirm('Delete this review?')) { try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } } }} className="text-sm text-red-600">Delete</button></div></div>)}</section>}
+      </div>
+      <div className="mx-auto w-full max-w-[500px]">
+        <BottomNav />
       </div>
     </main>
   );
