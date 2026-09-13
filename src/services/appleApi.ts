@@ -26,5 +26,14 @@ export const appleApi = {
   changePassword: (phone: string, current_password: string, new_password: string) => request<{ success: true; data: any }>('/apple-users/change-password', { method: 'POST', body: JSON.stringify({ phone: normalizePhone(phone), current_password, new_password }) }),
   getUser: (phone: string) => request<{ success: true; data: any }>(`/apple-users/${encodeURIComponent(normalizePhone(phone))}`),
   getOrders: (phone: string) => request<{ success: true; data: any[] }>(`/apple-orders?phone=${encodeURIComponent(normalizePhone(phone))}`),
-  createOrder: (order: any) => request<{ success: true; data: any }>('/apple-orders', { method: 'POST', body: JSON.stringify({ ...order, phone: normalizePhone(order.phone), address: order.address ? { ...order.address, phone: normalizePhone(order.address.phone) } : order.address })),
+  createOrder: (order: any) => request<{ success: true; data: any }>('/apple-orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...order,
+      phone: normalizePhone(order.phone),
+      address: order.address
+        ? { ...order.address, phone: normalizePhone(order.address.phone) }
+        : order.address,
+    }),
+  }),
 };
