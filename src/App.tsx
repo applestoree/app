@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { CartProvider } from './context/CartContext.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { AppShell } from './layouts/AppShell.tsx';
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/tracking/:id" element={<TrackingPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <SpeedInsights />
         </BrowserRouter>
       </CartProvider>
     </AuthProvider>
