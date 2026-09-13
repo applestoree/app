@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StandalonePage } from '../layouts/StandalonePage.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { appleApi } from '../services/appleApi.ts';
+import { normalizePhone } from '../utils/phone.ts';
 
 const DEFAULT_AVATAR = 'https://cdn.pixabay.com/photo/2021/11/24/05/19/user-6820232_1280.png';
 type Step = 'phone' | 'login' | 'register';
@@ -21,7 +22,9 @@ export const AuthPage: React.FC = () => {
   const checkPhone = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const result = await appleApi.checkUser(phone.trim());
+      const normalizedPhone = normalizePhone(phone);
+      setPhone(normalizedPhone);
+      const result = await appleApi.checkUser(normalizedPhone);
       if (result.exists) { setAccount(result.data); setStep('login'); }
       else { setAccount(null); setStep('register'); }
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to check phone'); }
@@ -31,8 +34,10 @@ export const AuthPage: React.FC = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      if (step === 'login') await login(phone.trim(), password);
-      else await register(name.trim(), phone.trim(), password, DEFAULT_AVATAR);
+      const normalizedPhone = normalizePhone(phone);
+      setPhone(normalizedPhone);
+      if (step === 'login') await login(normalizedPhone, password);
+      else await register(name.trim(), normalizedPhone, password, DEFAULT_AVATAR);
       navigate('/profile');
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to continue'); }
     finally { setLoading(false); }
@@ -43,7 +48,7 @@ export const AuthPage: React.FC = () => {
   return <StandalonePage title={step === 'phone' ? 'Sign In' : step === 'login' ? 'Welcome Back' : 'Create Account'}>
     {step === 'phone' && <form onSubmit={checkPhone} className="p-4 space-y-3">
       <div><h2 className="text-lg font-bold">Continue with phone</h2><p className="text-xs text-gray-500 mt-1">We'll check your account first.</p></div>
-      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" required className="w-full p-3 rounded-xl border" />
+      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" type="tel" required className="w-full p-3 rounded-xl border" />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button disabled={loading} className="w-full p-3 rounded-xl bg-black text-white font-semibold disabled:opacity-50">{loading ? 'Checking...' : 'Continue'}</button>
     </form>}
