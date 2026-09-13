@@ -18,7 +18,8 @@ import {
   RefreshCw,
   AlertCircle,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 
 export const DetailProductPage: React.FC = () => {
@@ -37,7 +38,7 @@ export const DetailProductPage: React.FC = () => {
 
   // Variant selector overlay state
   const [isVariantSheetOpen, setIsVariantSheetOpen] = useState(false);
-  const [variantSheetMode, setVariantSheetMode] = useState<'cart' | 'buy'>('cart');
+  const [variantSheetMode, setVariantSheetMode] = useState<'cart' | 'buy' | 'both'>('cart');
   const [addedToast, setAddedToast] = useState(false);
 
   const isWatch = useMemo(() => {
@@ -179,24 +180,13 @@ export const DetailProductPage: React.FC = () => {
       : undefined;
 
   const handleAddToCart = () => {
-    if (!product || !selectedColor || !selectedSize) {
-      setVariantSheetMode('cart');
-      setIsVariantSheetOpen(true);
-      return;
-    }
-    addToCart(product, selectedColor, selectedSize, 1);
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2500);
+    setVariantSheetMode('cart');
+    setIsVariantSheetOpen(true);
   };
 
   const handleBuyNow = () => {
-    if (!product || !selectedColor || !selectedSize) {
-      setVariantSheetMode('buy');
-      setIsVariantSheetOpen(true);
-      return;
-    }
-    addToCart(product, selectedColor, selectedSize, 1);
-    navigate('/checkout');
+    setVariantSheetMode('buy');
+    setIsVariantSheetOpen(true);
   };
 
   const handleVariantConfirm = (
@@ -458,6 +448,46 @@ export const DetailProductPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Quick BottomSheet Variant Trigger */}
+            <button
+              type="button"
+              id="open-variant-bottomsheet-btn"
+              onClick={() => {
+                setVariantSheetMode('both');
+                setIsVariantSheetOpen(true);
+              }}
+              className="w-full flex items-center justify-between p-3.5 bg-[#f5f5f7] hover:bg-[#ebebed] active:scale-[0.99] rounded-2xl border border-black/5 transition-all text-left group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-white border border-black/5 p-1 flex items-center justify-center shrink-0 shadow-2xs">
+                  {selectedColor?.image_link || allImages[0] ? (
+                    <img
+                      src={selectedColor?.image_link || allImages[0]}
+                      alt={product.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain mix-blend-multiply"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-[#0071e3]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#86868b] uppercase tracking-wider">
+                    <span>Pilih Varian</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-400" />
+                    <span className="text-[#0071e3]">BottomSheet</span>
+                  </div>
+                  <div className="text-xs font-semibold text-[#1d1d1f] mt-0.5 truncate">
+                    {selectedColor?.color || 'Pilih Warna'} • {selectedSize?.size || 'Pilih Ukuran'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[#0071e3] text-xs font-semibold shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform">
+                <span>Pilih</span>
+                <ChevronRight size={16} />
+              </div>
+            </button>
 
             {/* Variant Color Picker */}
             {product.variant_color && product.variant_color.length > 0 && (
@@ -769,6 +799,10 @@ export const DetailProductPage: React.FC = () => {
           initialColor={selectedColor || undefined}
           initialSize={selectedSize || undefined}
           onConfirm={handleVariantConfirm}
+          onVariantChange={(color, size) => {
+            setSelectedColor(color);
+            setSelectedSize(size);
+          }}
           mode={variantSheetMode}
         />
       )}
