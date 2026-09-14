@@ -70,7 +70,39 @@ export const CheckoutPage: React.FC = () => {
     if (!hasAddress) { alert('Please complete your delivery address before placing the order'); return; }
     const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType: 'delivery', shippingMethod: activeShippingMethod, shippingAddress: { ...address, phone }, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days' };
     try {
-      await addOrder(order);
+      const created = await addOrder(order);
+      const orderItems = cart.map(item => {
+        const unitPrice = item.selectedSize.sale_price != null && Number(item.selectedSize.sale_price) > 0 ? Number(item.selectedSize.sale_price) : Number(item.selectedSize.price) || 0;
+        return `• ${item.product.title} — ${item.selectedSize.size} — RM${unitPrice.toLocaleString()} × ${item.quantity}`;
+      }).join('\n');
+      const orderMessage = [
+        '🍎 APPLE STORE MALAYSIA — NEW ORDER',
+        '',
+        `Order ID: ${created.id}`,
+        '',
+        'Items:',
+        orderItems,
+        '',
+        `Subtotal: RM${subtotal.toLocaleString()}`,
+        `Shipping Fee: RM${shippingFee.toLocaleString()}`,
+        `Discount: RM${discount.toLocaleString()}`,
+        `Total: RM${finalTotal.toLocaleString()}`,
+        '',
+        'Customer:',
+        `Name: ${address.fullName}`,
+        `Phone: ${phone}`,
+        '',
+        'Delivery Address:',
+        address.street,
+        `${address.city}, ${address.postcode}, ${address.state}`,
+        address.country,
+        '',
+        `Payment Method: ${selectedPayment.title}`,
+        `Delivery Method: ${shippingOptions.find(option => option.id === activeShippingMethod)?.title || 'Standard Delivery'}`,
+        '',
+        'Please confirm my order. Thank you!'
+      ].join('\n');
+      await navigator.clipboard.writeText(orderMessage);
       clearCart();
       window.location.href = INSTAGRAM_DM_URL;
     } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
