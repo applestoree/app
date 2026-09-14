@@ -23,6 +23,13 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { adminApi } from '../services/adminApi.ts';
 import { AdminBottomNav } from '../components/AdminBottomNav.tsx';
 import { VariantSectionPage } from '../components/admin/VariantSectionPage.tsx';
+import { OrdersView } from '../components/admin/OrdersView.tsx';
+import { UsersView, AdminUser } from '../components/admin/UsersView.tsx';
+import { appleApi } from '../services/appleApi.ts';
+import {
+  AdminSelectBottomSheetProvider,
+  AdminSelectField,
+} from '../components/admin/AdminSelectBottomSheet.tsx';
 
 type AdminView = 'dashboard' | 'products' | 'orders' | 'users' | 'reviews';
 type ProductForm = {
@@ -56,10 +63,17 @@ function Field({ label, type = 'text', value, onChange, readOnly = false, min, m
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
-  return <ListInput outline label={label} type="select" dropdown value={value} onChange={e => onChange(e.target.value)}>
-    <option value="">—</option>
-    {options.map(option => <option key={option} value={option}>{option}</option>)}
-  </ListInput>;
+  return (
+    <AdminSelectField
+      variant="list-input"
+      label={label}
+      title={`Pilih ${label}`}
+      value={value}
+      options={options}
+      onChange={onChange}
+      placeholder="Select..."
+    />
+  );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -291,41 +305,83 @@ function ProductForm({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider block mb-1">
-                  Availability
-                </label>
-                <select
-                  value={form.availability}
-                  onChange={(e) => set('availability', e.target.value)}
-                  className="w-full text-xs border border-gray-200 rounded-xl px-2.5 py-2 bg-white focus:border-[#0071e3] focus:outline-none"
-                >
-                  <option value="">Select...</option>
-                  {availabilities.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <AdminSelectField
+                label="Availability"
+                title="Pilih Ketersediaan (Availability)"
+                subtitle="Status ketersediaan stok di etalase"
+                value={form.availability}
+                options={[
+                  {
+                    value: 'In Stock',
+                    label: 'In Stock',
+                    description: 'Tersedia untuk pengiriman segera',
+                    badge: 'IN STOCK',
+                    badgeClass: 'bg-emerald-50 text-emerald-700',
+                  },
+                  {
+                    value: 'Limited Stock',
+                    label: 'Limited Stock',
+                    description: 'Stok terbatas / menipis',
+                    badge: 'LIMITED',
+                    badgeClass: 'bg-amber-50 text-amber-700',
+                  },
+                  {
+                    value: 'Pre-Order',
+                    label: 'Pre-Order',
+                    description: 'Pesanan prapesan resmi',
+                    badge: 'PRE-ORDER',
+                    badgeClass: 'bg-blue-50 text-blue-700',
+                  },
+                  {
+                    value: 'Out of Stock',
+                    label: 'Out of Stock',
+                    description: 'Stok produk saat ini habis',
+                    badge: 'OUT OF STOCK',
+                    badgeClass: 'bg-rose-50 text-rose-700',
+                  },
+                ]}
+                onChange={(val) => set('availability', val)}
+                placeholder="Pilih..."
+              />
 
-              <div>
-                <label className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider block mb-1">
-                  Condition
-                </label>
-                <select
-                  value={form.condition}
-                  onChange={(e) => set('condition', e.target.value)}
-                  className="w-full text-xs border border-gray-200 rounded-xl px-2.5 py-2 bg-white focus:border-[#0071e3] focus:outline-none"
-                >
-                  <option value="">Select...</option>
-                  {conditions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <AdminSelectField
+                label="Condition"
+                title="Pilih Kondisi (Condition)"
+                subtitle="Kondisi fisik dan kelayakan unit"
+                value={form.condition}
+                options={[
+                  {
+                    value: 'Brand New',
+                    label: 'Brand New',
+                    description: 'Baru & segel pabrik resmi 100%',
+                    badge: 'NEW',
+                    badgeClass: 'bg-emerald-50 text-emerald-700',
+                  },
+                  {
+                    value: 'Refurbished',
+                    label: 'Refurbished',
+                    description: 'Rekondisi resmi teruji bersertifikat',
+                    badge: 'REFURBISHED',
+                    badgeClass: 'bg-purple-50 text-purple-700',
+                  },
+                  {
+                    value: 'Like New',
+                    label: 'Like New',
+                    description: 'Kondisi fisik mulus tanpa cacat 99%',
+                    badge: 'LIKE NEW',
+                    badgeClass: 'bg-blue-50 text-blue-700',
+                  },
+                  {
+                    value: 'Open Box',
+                    label: 'Open Box',
+                    description: 'Buka segel box / unit display pameran',
+                    badge: 'OPEN BOX',
+                    badgeClass: 'bg-gray-100 text-gray-700',
+                  },
+                ]}
+                onChange={(val) => set('condition', val)}
+                placeholder="Pilih..."
+              />
             </div>
 
             <div>
@@ -588,35 +644,11 @@ function ProductForm({
   );
 }
 
-function OrdersView({ orders, selectedOrder, onSelectOrder, onStatusChange, onPaymentChange }: { orders: any[]; selectedOrder: any | null; onSelectOrder: (order: any | null) => void; onStatusChange: (id: number | string, status: string) => Promise<void>; onPaymentChange: (id: number | string, payment: any) => Promise<void> }) {
-  if (selectedOrder) {
-    const o = selectedOrder; const address = jsonObject(o.address); const store = jsonObject(o.store); const shipping = jsonObject(o.shipping); const voucher = jsonObject(o.voucher); const payment = jsonObject(o.payment); const items = jsonArray(o.items);
-    const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
-    const destination = deliveryType === 'store_pickup' ? (store.address || store.name || 'Store pickup') : (address.address || [address.city, address.state, address.postcode].filter(Boolean).join(', ') || 'Address not provided');
-    return <>
-      <Navbar title={`Order #${o.id}`} left={<Button clear onClick={() => onSelectOrder(null)}>Back</Button>} />
-      <Section title="Order"><List inset strong><ListItem title="Created At" after={o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'} /><ListItem title="Customer" after={o.phone || 'Guest'} /><SelectField label="Status" value={o.status || 'pending'} options={ORDER_STATUSES} onChange={v => void onStatusChange(o.id, v)} /></List></Section>
-      <Section title="Items"><List inset strong>{items.length ? items.map((item: any, index: number) => { const product = jsonObject(item.product); const title = item.title || product.title || item.name || item.item_group_id || `Item ${index + 1}`; const color = item.selectedColor || item.color || ''; const size = item.selectedSize || item.size || ''; const quantity = Number(item.quantity || 1); const price = item.sale_price ?? item.price ?? product.sale_price ?? product.price ?? 0; return <ListItem key={`${String(o.id)}-${index}`} title={title} subtitle={[color, size].filter(Boolean).join(' · ') || 'Variant unavailable'} after={`${money(Number(price) * quantity)} · Qty ${quantity}`} />; }) : <ListItem title="No item details." />}</List></Section>
-      <Section title="Fulfillment"><List inset strong><ListItem title={deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'} subtitle={shipping.shipping_method || shipping.method || '—'} /><ListItem title="Destination" subtitle={destination} /></List></Section>
-      <Section title="Payment"><List inset strong>
-        <SelectField label="Method" value={payment.method || ''} options={PAYMENT_METHODS} onChange={value => void onPaymentChange(o.id, { ...payment, method: value })} />
-        <SelectField label="Status" value={payment.status || ''} options={PAYMENT_STATUSES} onChange={value => void onPaymentChange(o.id, { ...payment, status: value })} />
-        <ListItem title="DuitNow QR" after={<Toggle checked={payment.duitnow_qr?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), is_active: payment.duitnow_qr?.is_active !== true } })} />} />
-        <Field label="DuitNow QR Image" type="url" value={str(payment.duitnow_qr?.img)} onChange={value => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), img: value } })} />
-        <ListItem title="Bank Transfer" after={<Toggle checked={payment.transferbank?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), is_active: payment.transferbank?.is_active !== true } })} />} />
-        <Field label="Bank Name" value={str(payment.transferbank?.name)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), name: value } })} />
-        <Field label="Bank Number" value={str(payment.transferbank?.number)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), number: value } })} />
-      </List></Section>
-      <Section title="Summary"><List inset strong><ListItem title="Subtotal" after={money(o.subtotal)} /><ListItem title="Shipping" after={money(o.shipping_fee || shipping.fee)} /><ListItem title="Discount" after={`- ${money(o.discount || voucher.discount)}`} /><ListItem title="Total" after={money(o.total)} /></List></Section>
-      {(voucher.code || Number(o.discount || voucher.discount || 0) > 0) && <Section title="Voucher"><List inset strong><ListItem title={voucher.code || '—'} after={`Discount ${money(o.discount || voucher.discount)}`} /></List></Section>}
-    </>;
-  }
-  return <Section title="Orders"><List inset strong><ListItem title="Order Count" after={<Badge>{orders.length}</Badge>} />{orders.length === 0 ? <ListItem title="No orders." /> : orders.map(o => { const shipping = jsonObject(o.shipping); const payment = jsonObject(o.payment); const store = jsonObject(o.store); const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : '')); return <ListItem key={String(o.id)} title={`Order #${o.id}`} subtitle={`${o.phone || 'Guest'} · ${o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}`} text={`${deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'} · ${payment.method || 'Payment not set'}`} after={`${o.status || 'pending'} · ${money(o.total)}`} link onClick={() => onSelectOrder(o)} />; })}</List></Section>;
-}
-
 export function AdminPage() {
   const { user, loading, logout } = useAuth();
-  const [view, setView] = useState<AdminView>('dashboard'); const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [view, setView] = useState<AdminView>('dashboard');
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [products, setProducts] = useState<any[]>([]); const [orders, setOrders] = useState<any[]>([]); const [users, setUsers] = useState<any[]>([]); const [reviews, setReviews] = useState<any[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm()); const [editing, setEditing] = useState(false); const [productCrudOpen, setProductCrudOpen] = useState(false); const [variantSectionOpen, setVariantSectionOpen] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [deleteId, setDeleteId] = useState<string | null>(null);
   const load = useCallback(async () => { setBusy(true); setError(''); try { const [p, o, u, r] = await Promise.all([adminApi.products(), adminApi.orders(), adminApi.users(), adminApi.reviews()]); setProducts(Array.isArray(p.data) ? p.data : []); setOrders(Array.isArray(o.data) ? o.data : []); setUsers(Array.isArray(u.data) ? u.data : []); setReviews(Array.isArray(r.data) ? r.data : []); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load admin data'); } finally { setBusy(false); } }, []);
@@ -627,13 +659,71 @@ export function AdminPage() {
   const updateProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.updateProduct(value.item_group_id, value); setEditing(false); setProductCrudOpen(false); setVariantSectionOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); } };
   const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setVariantSectionOpen(false); setView('products'); };
   const deleteProduct = async (id: string) => { try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } setDeleteId(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); setDeleteId(null); } };
-  const updateOrderStatus = async (id: number | string, status: string) => { try { await adminApi.updateOrderStatus(id, status); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Status update failed'); } };
+  const updateOrderStatus = async (id: number | string, status: string) => {
+    try {
+      setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, status } : order));
+      setSelectedOrder(prev => prev && String(prev.id) === String(id) ? { ...prev, status } : prev);
+      await adminApi.updateOrderStatus(id, status);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Status update failed');
+      await load();
+    }
+  };
   const updateOrderPayment = async (id: number | string, payment: any) => { try { await adminApi.updateOrderPayment(id, payment); setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, payment } : order)); setSelectedOrder(prev => prev && String(prev.id) === String(id) ? { ...prev, payment } : prev); } catch (e) { setError(e instanceof Error ? e.message : 'Payment update failed'); } };
+  const updateUserRole = async (phone: string, role: string) => {
+    try {
+      await adminApi.updateUserRole(phone, role);
+      setUsers(prev => prev.map(u => u.phone === phone ? { ...u, role } : u));
+      if (selectedUser && selectedUser.phone === phone) {
+        setSelectedUser(prev => prev ? { ...prev, role } : null);
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Role update failed');
+      throw e;
+    }
+  };
+  const saveUser = async (phone: string, updates: Partial<AdminUser>) => {
+    try {
+      await appleApi.updateUser(phone, updates);
+      setUsers(prev => prev.map(u => u.phone === phone ? { ...u, ...updates } : u));
+      if (selectedUser && selectedUser.phone === phone) {
+        setSelectedUser(prev => prev ? { ...prev, ...updates } : null);
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update user failed');
+      throw e;
+    }
+  };
+  const createUser = async (data: { name: string; phone: string; password: string; role?: string; email?: string; avatar_url?: string; address?: any }) => {
+    try {
+      await appleApi.register(data.name, data.phone, data.password, data.avatar_url);
+      if (data.role && data.role === 'admin') {
+        await adminApi.updateUserRole(data.phone, 'admin');
+      }
+      if (data.email || data.address) {
+        await appleApi.updateUser(data.phone, {
+          ...(data.email ? { email: data.email } : {}),
+          ...(data.address ? { address: data.address } : {}),
+        });
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Create user failed');
+      throw e;
+    }
+  };
   const productCrudMode = view === 'products' && productCrudOpen;
   const closeProductCrud = () => { setProductCrudOpen(false); setVariantSectionOpen(false); setForm(emptyForm()); setEditing(false); };
 
-  return <KonstaProvider theme="ios"><App theme="ios" className="w-full max-w-[500px] mx-auto"><Page className="w-full min-h-full flex flex-col">
-    {!selectedOrder && (
+  return (
+    <KonstaProvider theme="ios">
+      <App theme="ios" className="w-full max-w-[500px] mx-auto">
+        <AdminSelectBottomSheetProvider>
+          <Page className="w-full min-h-full flex flex-col">
+    {!selectedOrder && !selectedUser && (
       <Navbar
         title={productCrudMode ? (editing ? 'Edit Product' : 'New Product') : 'Admin'}
         subtitle={
@@ -771,7 +861,17 @@ export function AdminPage() {
         />
       )}
       {view === 'orders' && <OrdersView orders={orders} selectedOrder={selectedOrder} onSelectOrder={setSelectedOrder} onStatusChange={updateOrderStatus} onPaymentChange={updateOrderPayment} />}
-      {view === 'users' && <Section title="Users"><List strong inset outline>{users.length === 0 ? <ListItem title="No users." /> : users.map(u => <React.Fragment key={u.phone}><ListItem title={u.name || u.phone} subtitle={u.phone} /><SelectField label="Role" value={u.role || 'customer'} options={['customer', 'admin']} onChange={async value => { try { await adminApi.updateUserRole(u.phone, value); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Role update failed'); } }} /></React.Fragment>)}</List></Section>}
+      {view === 'users' && (
+        <UsersView
+          users={users}
+          selectedUser={selectedUser}
+          onSelectUser={setSelectedUser}
+          onReload={load}
+          onRoleChange={updateUserRole}
+          onSaveUser={saveUser}
+          onCreateUser={createUser}
+        />
+      )}
       {view === 'reviews' && <Section title="Reviews"><List strong inset outline>{reviews.length === 0 ? <ListItem title="No reviews." /> : reviews.map(r => <ListItem key={r.id} title={`${r.name || r.phone || 'Guest'} · ${r.rating}/5`} subtitle={r.comment} text={`${r.item_group_id || ''}${r.phone ? ` · ${r.phone}` : ''}`} after={<Button clear onClick={async () => { try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } }}>Delete</Button>} />)}</List></Section>}
     </main>
     {productCrudMode && (
@@ -801,6 +901,31 @@ export function AdminPage() {
         </ToolbarPane>
       </Toolbar>
     )}
-    {!productCrudMode && !selectedOrder && <AdminBottomNav activeView={view} onViewChange={setView} />}
-  </Page><Dialog opened={deleteId !== null} onBackdropClick={() => setDeleteId(null)} title="Delete Product" content={deleteId ? `Delete ${deleteId}?` : ''} buttons={<><DialogButton onClick={() => setDeleteId(null)}>Cancel</DialogButton><DialogButton strong onClick={() => deleteId && void deleteProduct(deleteId)}>Delete</DialogButton></>} /></App></KonstaProvider>;
+    {!productCrudMode && !selectedOrder && !selectedUser && (
+      <AdminBottomNav
+        activeView={view}
+        onViewChange={(v) => {
+          setView(v);
+          setSelectedOrder(null);
+          setSelectedUser(null);
+        }}
+      />
+    )}
+    </Page>
+    <Dialog
+      opened={deleteId !== null}
+      onBackdropClick={() => setDeleteId(null)}
+      title="Delete Product"
+      content={deleteId ? `Delete ${deleteId}?` : ''}
+      buttons={
+        <>
+          <DialogButton onClick={() => setDeleteId(null)}>Cancel</DialogButton>
+          <DialogButton strong onClick={() => deleteId && void deleteProduct(deleteId)}>Delete</DialogButton>
+        </>
+      }
+    />
+  </AdminSelectBottomSheetProvider>
+</App>
+</KonstaProvider>
+);
 }

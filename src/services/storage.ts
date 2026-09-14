@@ -40,3 +40,59 @@ export async function uploadProductImage(file: File, itemGroupId: string, color:
 
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
+
+export async function uploadDuitNowQrImage(file: File, orderId?: string | number) {
+  if (!file.type.startsWith('image/')) throw new Error('Hanya file gambar yang diperbolehkan (PNG, JPG, WebP).');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Ukuran file gambar maksimal 5 MB.');
+
+  const extension = getExtension(file);
+  const safeId = orderId ? safeSegment(String(orderId)) : 'general';
+  const filename = `duitnow-qr-${safeId}-${Date.now()}.${extension}`;
+  const path = `payments/duitnow-qr/${filename}`;
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'false',
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || `Upload QR ke Supabase gagal (${response.status}).`);
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+
+export async function uploadUserAvatar(file: File, phone?: string) {
+  if (!file.type.startsWith('image/')) throw new Error('Hanya file gambar yang diperbolehkan (PNG, JPG, WebP).');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Ukuran file gambar maksimal 5 MB.');
+
+  const extension = getExtension(file);
+  const safePhone = phone ? safeSegment(phone) : 'user';
+  const filename = `avatar-${safePhone}-${Date.now()}.${extension}`;
+  const path = `avatars/${filename}`;
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'false',
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || `Upload avatar ke Supabase gagal (${response.status}).`);
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+}

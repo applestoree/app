@@ -12,7 +12,8 @@ import {
   Building2,
   Store,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Package,
 } from 'lucide-react';
 
 export const TrackingPage: React.FC = () => {
@@ -175,31 +176,45 @@ export const TrackingPage: React.FC = () => {
           {/* Purchased Items List */}
           {order?.items && order.items.length > 0 && (
             <div className="divide-y divide-gray-100 pt-2 space-y-2">
-              {order.items.map((item) => {
+              {order.items.map((item, itemIdx) => {
+                const colorObj = typeof item.selectedColor === 'object' && item.selectedColor !== null ? item.selectedColor : null;
+                const sizeObj = typeof item.selectedSize === 'object' && item.selectedSize !== null ? item.selectedSize : null;
+                const colorName = colorObj?.color || (typeof item.selectedColor === 'string' ? item.selectedColor : '');
+                const sizeName = sizeObj?.size || (typeof item.selectedSize === 'string' ? item.selectedSize : '');
+                const imageLink = colorObj?.image_link || item.product?.variant_color?.[0]?.image_link || '';
+
                 const hasValidSale =
-                  item.selectedSize.sale_price !== undefined &&
-                  item.selectedSize.sale_price !== null &&
-                  !isNaN(Number(item.selectedSize.sale_price)) &&
-                  Number(item.selectedSize.sale_price) > 0;
+                  sizeObj?.sale_price !== undefined &&
+                  sizeObj?.sale_price !== null &&
+                  !isNaN(Number(sizeObj.sale_price)) &&
+                  Number(sizeObj.sale_price) > 0;
                 const price = hasValidSale
-                  ? Number(item.selectedSize.sale_price)
-                  : Number(item.selectedSize.price) || 0;
+                  ? Number(sizeObj.sale_price)
+                  : Number(sizeObj?.price) || Number(item.product?.price) || 0;
+                const itemKey = item.id || `tracking-item-${itemIdx}`;
+
                 return (
-                  <div key={item.id} className="pt-2 flex items-center gap-3">
+                  <div key={itemKey} className="pt-2 flex items-center gap-3">
                     <div className="w-12 h-12 bg-[#fbfbfd] rounded-xl border border-black/5 p-1 flex items-center justify-center flex-shrink-0">
-                      <img
-                        src={item.selectedColor.image_link}
-                        alt={item.product.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-contain mix-blend-multiply"
-                      />
+                      {imageLink ? (
+                        <img
+                          src={imageLink}
+                          alt={item.product?.title || 'Product'}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain mix-blend-multiply"
+                        />
+                      ) : (
+                        <Package size={18} className="text-gray-400" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 text-xs">
                       <h5 className="font-semibold text-[#1d1d1f] truncate">
-                        {item.product.title}
+                        {item.product?.title || 'Product'}
                       </h5>
                       <div className="text-[10px] text-[#86868b]">
-                        {item.selectedColor.color} • {item.selectedSize.size} • Qty: {item.quantity}
+                        {[colorName, sizeName].filter(Boolean).join(' • ')}
+                        {[colorName, sizeName].filter(Boolean).length > 0 ? ' • ' : ''}
+                        Qty: {item.quantity}
                       </div>
                     </div>
                     <div className="text-xs font-semibold text-[#1d1d1f]">
