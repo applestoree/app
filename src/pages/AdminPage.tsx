@@ -17,6 +17,8 @@ type ProductForm = {
 };
 
 const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+const PAYMENT_METHODS = ['duitnow_qr', 'transferbank'];
+const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'cancelled'];
 const emptySize = () => ({ size: '', price: '', sale_price: '', discount_is_active: false, discount: '' });
 const emptyForm = (): ProductForm => ({
   item_group_id: '', title: '', description: '', availability: '', condition: '', brand: '', link: '', google_product_category: '', product_type: '', quantity_to_sell_on_facebook: '',
@@ -52,9 +54,7 @@ function productToForm(p: any): ProductForm {
 function formToProduct(f: ProductForm) {
   const num = (v: string) => v === '' ? null : Number(v);
   const variant_size = f.variant_size.filter(v => v.size || v.price || v.sale_price).map(v => {
-    const price = num(v.price);
-    const salePrice = num(v.sale_price);
-    const discount = v.discount === '' ? null : Number(v.discount);
+    const price = num(v.price); const salePrice = num(v.sale_price); const discount = v.discount === '' ? null : Number(v.discount);
     if (price != null && salePrice != null && !(price > salePrice)) throw new Error(`Variant size ${v.size || '(unnamed)'}: Price must be greater than Sale Price`);
     if (v.discount_is_active && (discount == null || discount < 0 || discount > 100)) throw new Error(`Variant size ${v.size || '(unnamed)'}: Discount must be between 0 and 100%`);
     return { size: v.size, price, sale_price: salePrice, discount_is_active: v.discount_is_active, discount };
@@ -72,34 +72,9 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
   const labels = Array.from({ length: 6 }, (_, i) => `custom_label_${i}` as keyof ProductForm);
   const updateColor = (i: number, key: keyof ProductForm['variant_color'][number], value: string) => set('variant_color', form.variant_color.map((v, n) => n === i ? { ...v, [key]: value } : v));
   const updateSize = (i: number, key: keyof ProductForm['variant_size'][number], value: string | boolean) => set('variant_size', form.variant_size.map((v, n) => n === i ? { ...v, [key]: value } : v));
-  const updateSizeDiscount = (i: number, value: string) => {
-    const discount = Number(value);
-    set('variant_size', form.variant_size.map((v, n) => {
-      if (n !== i) return v;
-      const price = Number(v.price);
-      const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : v.sale_price;
-      return { ...v, discount: value, sale_price: value === '' ? v.sale_price : String(salePrice) };
-    }));
-  };
-  const toggleSizeDiscount = (i: number, active: boolean) => {
-    set('variant_size', form.variant_size.map((v, n) => {
-      if (n !== i) return v;
-      if (!active) return { ...v, discount_is_active: false, discount: '' };
-      const discount = v.discount === '' ? '10' : v.discount;
-      const price = Number(v.price);
-      const salePrice = Number.isFinite(price) ? Math.round((price - (price * Number(discount) / 100)) * 100) / 100 : v.sale_price;
-      return { ...v, discount_is_active: true, discount, sale_price: String(salePrice) };
-    }));
-  };
-  const updateSizePrice = (i: number, value: string) => {
-    set('variant_size', form.variant_size.map((v, n) => {
-      if (n !== i) return v;
-      if (!v.discount_is_active || v.discount === '') return { ...v, price: value };
-      const price = Number(value); const discount = Number(v.discount);
-      const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : '';
-      return { ...v, price: value, sale_price: String(salePrice) };
-    }));
-  };
+  const updateSizeDiscount = (i: number, value: string) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; const price = Number(v.price); const discount = Number(value); const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : v.sale_price; return { ...v, discount: value, sale_price: value === '' ? v.sale_price : String(salePrice) }; }));
+  const toggleSizeDiscount = (i: number, active: boolean) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!active) return { ...v, discount_is_active: false, discount: '' }; const discount = v.discount === '' ? '10' : v.discount; const price = Number(v.price); const salePrice = Number.isFinite(price) ? Math.round((price - (price * Number(discount) / 100)) * 100) / 100 : v.sale_price; return { ...v, discount_is_active: true, discount, sale_price: String(salePrice) }; }));
+  const updateSizePrice = (i: number, value: string) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!v.discount_is_active || v.discount === '') return { ...v, price: value }; const price = Number(value); const discount = Number(v.discount); const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : ''; return { ...v, price: value, sale_price: String(salePrice) }; }));
   const remove = (key: 'variant_color' | 'variant_size' | 'main_features' | 'sub_features', i: number) => set(key, form[key].filter((_, n) => n !== i));
   return <div className="space-y-4">
     <Section title="Basic Information"><Field label="Item Group ID" value={form.item_group_id} onChange={v => set('item_group_id', v)} /><Field label="Title" value={form.title} onChange={v => set('title', v)} /><Field label="Description" type="textarea" value={form.description} onChange={v => set('description', v)} /><div className="grid grid-cols-2 gap-3"><Field label="Availability" value={form.availability} onChange={v => set('availability', v)} /><Field label="Condition" value={form.condition} onChange={v => set('condition', v)} /><Field label="Brand" value={form.brand} onChange={v => set('brand', v)} /><Field label="Product Type" value={form.product_type} onChange={v => set('product_type', v)} /><Field label="Product Link" type="url" value={form.link} onChange={v => set('link', v)} /><Field label="Google Product Category" value={form.google_product_category} onChange={v => set('google_product_category', v)} /><Field label="Quantity to Sell on Facebook" type="number" value={form.quantity_to_sell_on_facebook} onChange={v => set('quantity_to_sell_on_facebook', v)} /></div></Section>
@@ -114,28 +89,24 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
   </div>;
 }
 
-function OrdersView({ orders, onStatusChange }: { orders: any[]; onStatusChange: (id: number | string, status: string) => Promise<void> }) {
-  return <section className="space-y-4">
-    <div className="flex items-end justify-between"><div><h2 className="text-lg font-semibold text-gray-900">Orders</h2><p className="text-sm text-gray-500">{orders.length} order{orders.length === 1 ? '' : 's'}</p></div></div>
-    {orders.length === 0 ? <Section title="Order List"><p className="text-sm text-gray-500">No orders.</p></Section> : orders.map(o => {
-      const address = jsonObject(o.address);
-      const store = jsonObject(o.store);
-      const shipping = jsonObject(o.shipping);
-      const voucher = jsonObject(o.voucher);
-      const payment = jsonObject(o.payment);
-      const items = jsonArray(o.items);
+function OrdersView({ orders, onStatusChange, onPaymentChange }: { orders: any[]; onStatusChange: (id: number | string, status: string) => Promise<void>; onPaymentChange: (id: number | string, payment: any) => Promise<void> }) {
+  return <Section title="Orders"><div className="flex items-end justify-between"><div><p className="text-sm text-gray-500">{orders.length} order{orders.length === 1 ? '' : 's'}</p></div></div>
+    {orders.length === 0 ? <p className="text-sm text-gray-500">No orders.</p> : <div className="space-y-4">{orders.map(o => {
+      const address = jsonObject(o.address); const store = jsonObject(o.store); const shipping = jsonObject(o.shipping); const voucher = jsonObject(o.voucher); const payment = jsonObject(o.payment); const items = jsonArray(o.items);
       const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
       const destination = deliveryType === 'store_pickup' ? (store.address || store.name || 'Store pickup') : (address.address || [address.city, address.state, address.postcode].filter(Boolean).join(', ') || 'Address not provided');
       return <article key={String(o.id)} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
         <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-gray-900">Order #{o.id}</p><p className="text-xs text-gray-500">{o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}</p><p className="mt-1 text-sm text-gray-600">{o.phone || 'Guest'}</p></div><select value={o.status || 'pending'} onChange={e => void onStatusChange(o.id, e.target.value)} className="shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm">{ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
         <div className="space-y-2"><p className="text-sm font-semibold text-gray-900">Items</p>{items.length ? items.map((item: any, index: number) => { const product = jsonObject(item.product); const title = item.title || product.title || item.name || item.item_group_id || `Item ${index + 1}`; const color = item.selectedColor || item.color || ''; const size = item.selectedSize || item.size || ''; const quantity = Number(item.quantity || 1); const price = item.sale_price ?? item.price ?? product.sale_price ?? product.price ?? 0; return <div key={`${String(o.id)}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-gray-900">{title}</p><p className="text-xs text-gray-500">{[color, size].filter(Boolean).join(' · ') || 'Variant unavailable'} · Qty {quantity}</p></div><p className="shrink-0 text-sm font-medium">{money(Number(price) * quantity)}</p></div>; }) : <p className="text-sm text-gray-500">No item details.</p>}</div>
-        <div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Fulfillment</p><p className="mt-1 text-sm font-medium">{deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'}</p><p className="mt-1 text-xs text-gray-500">{shipping.shipping_method || shipping.method || '—'}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Payment</p><p className="mt-1 text-sm font-medium">{payment.method || '—'}</p><p className="mt-1 text-xs text-gray-500">{payment.status || '—'}</p></div></div>
+        <div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Fulfillment</p><p className="mt-1 text-sm font-medium">{deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'}</p><p className="mt-1 text-xs text-gray-500">{shipping.shipping_method || shipping.method || '—'}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Payment</p><select value={payment.method || ''} onChange={e => void onPaymentChange(o.id, { ...payment, method: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"><option value="">—</option>{PAYMENT_METHODS.map(method => <option key={method} value={method}>{method}</option>)}</select><select value={payment.status || ''} onChange={e => void onPaymentChange(o.id, { ...payment, status: e.target.value })} className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"><option value="">—</option>{PAYMENT_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select></div></div>
+        <div className="rounded-xl border border-gray-200 p-3 space-y-3"><p className="text-sm font-semibold text-gray-900">DuitNow QR</p><div className="flex items-center justify-between"><span className="text-sm text-gray-700">Active</span><button type="button" role="switch" aria-checked={payment.duitnow_qr?.is_active === true} onClick={() => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), is_active: payment.duitnow_qr?.is_active !== true } })} className={`rounded-full px-3 py-1 text-xs font-medium ${payment.duitnow_qr?.is_active === true ? 'bg-black text-white' : 'border border-gray-200 text-gray-600'}`}>{payment.duitnow_qr?.is_active === true ? 'ON' : 'OFF'}</button></div><Field label="Image" type="url" value={str(payment.duitnow_qr?.img)} onChange={value => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), img: value } })} /></div>
+        <div className="rounded-xl border border-gray-200 p-3 space-y-3"><p className="text-sm font-semibold text-gray-900">Bank Transfer</p><div className="flex items-center justify-between"><span className="text-sm text-gray-700">Active</span><button type="button" role="switch" aria-checked={payment.transferbank?.is_active === true} onClick={() => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), is_active: payment.transferbank?.is_active !== true } })} className={`rounded-full px-3 py-1 text-xs font-medium ${payment.transferbank?.is_active === true ? 'bg-black text-white' : 'border border-gray-200 text-gray-600'}`}>{payment.transferbank?.is_active === true ? 'ON' : 'OFF'}</button></div><Field label="Name" value={str(payment.transferbank?.name)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), name: value } })} /><Field label="Number" value={str(payment.transferbank?.number)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), number: value } })} /></div>
         <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Destination</p><p className="mt-1 text-sm text-gray-800">{destination}</p></div>
         {(voucher.code || Number(o.discount || voucher.discount || 0) > 0) && <div className="rounded-xl border border-gray-200 p-3"><p className="text-xs text-gray-500">Voucher</p><p className="mt-1 text-sm">{voucher.code || '—'} · Discount {money(o.discount || voucher.discount)}</p></div>}
         <div className="border-t border-gray-100 pt-3 space-y-1 text-sm"><div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(o.subtotal)}</span></div><div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{money(o.shipping_fee || shipping.fee)}</span></div><div className="flex justify-between"><span className="text-gray-500">Discount</span><span>- {money(o.discount || voucher.discount)}</span></div><div className="flex justify-between pt-2 text-base font-semibold"><span>Total</span><span>{money(o.total)}</span></div></div>
       </article>;
-    })}
-  </section>;
+    })}</div>}
+  </Section>;
 }
 
 export function AdminPage() {
@@ -153,9 +124,9 @@ export function AdminPage() {
   const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setView('products'); };
   const deleteProduct = async (id: string) => { if (!window.confirm(`Delete ${id}?`)) return; try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } };
   const updateOrderStatus = async (id: number | string, status: string) => { try { await adminApi.updateOrderStatus(id, status); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Status update failed'); } };
+  const updateOrderPayment = async (id: number | string, payment: any) => { try { await adminApi.updateOrderPayment(id, payment); setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, payment } : order)); } catch (e) { setError(e instanceof Error ? e.message : 'Payment update failed'); } };
 
-  const productPage = view === 'products';
-  const productCrudMode = productPage && productCrudOpen;
+  const productPage = view === 'products'; const productCrudMode = productPage && productCrudOpen;
   const closeProductCrud = () => { setProductCrudOpen(false); setForm(emptyForm()); setEditing(false); };
 
   return <main className="w-full max-w-[500px] mx-auto h-full min-h-[100dvh] bg-gray-50 flex flex-col">
@@ -165,7 +136,7 @@ export function AdminPage() {
       {view === 'dashboard' && <section className="space-y-4"><div className="grid grid-cols-2 gap-3"><Card label="Products" value={stats.products} /><Card label="Orders" value={stats.orders} /><Card label="Users" value={stats.users} /><Card label="Reviews" value={stats.reviews} /></div><Section title="Overview"><p className="text-sm text-gray-500">Manage products, orders, users and reviews from the admin views.</p></Section></section>}
       {view === 'products' && !productCrudOpen && <section className="space-y-4"><Section title="Product List"><div className="mb-3 flex justify-end"><button type="button" onClick={() => { setForm(emptyForm()); setEditing(false); setProductCrudOpen(true); }} className="rounded-xl bg-black px-3 py-2 text-sm text-white">+ New Product</button></div>{products.length === 0 ? <p className="text-sm text-gray-500">No products.</p> : <div className="grid grid-cols-2 gap-3">{products.map(p => { const imageUrl = p.variant_image?.[0]?.image_link; return <div key={p.item_group_id} className="overflow-hidden rounded-xl border border-gray-200 bg-white"><div className="aspect-square w-full overflow-hidden bg-gray-50">{imageUrl ? <img src={imageUrl} alt={p.title || p.item_group_id} className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No image</div>}</div><div className="p-3"><p className="font-medium">{p.title || p.item_group_id}</p><p className="text-xs text-gray-500">{p.item_group_id}</p><div className="mt-2 flex items-center justify-between gap-2"><button type="button" onClick={() => editProduct(p)} className="text-sm underline">Edit</button><button type="button" onClick={() => void deleteProduct(p.item_group_id)} className="text-sm text-red-600">Delete</button></div></div></div>; })}</div>}</Section></section>}
       {view === 'products' && productCrudOpen && <ProductForm form={form} setForm={setForm}/>} 
-      {view === 'orders' && <OrdersView orders={orders} onStatusChange={updateOrderStatus} />}
+      {view === 'orders' && <OrdersView orders={orders} onStatusChange={updateOrderStatus} onPaymentChange={updateOrderPayment} />}
       {view === 'users' && <section className="space-y-3">{users.map(u => <div key={u.phone} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4"><div><p className="font-medium">{u.name || u.phone}</p><p className="text-xs text-gray-500">{u.phone}</p></div><select value={u.role || 'customer'} onChange={async e => { try { await adminApi.updateUserRole(u.phone, e.target.value); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Role update failed'); } }} className="rounded-lg border border-gray-200 px-2 py-1 text-sm"><option value="customer">customer</option><option value="admin">admin</option></select></div>)}</section>}
       {view === 'reviews' && <section className="space-y-3">{reviews.map(r => <div key={r.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.name} · {r.rating}/5</p><p className="mt-1 text-sm text-gray-600">{r.comment}</p><p className="mt-1 text-xs text-gray-400">{r.item_group_id} · {r.phone}</p></div><button onClick={async () => { if (!window.confirm('Delete this review?')) return; try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } }} className="text-sm text-red-600">Delete</button></div></div>)}</section>}
     </div>
