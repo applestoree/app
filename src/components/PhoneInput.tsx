@@ -16,8 +16,8 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({ value, onChange, classNa
   };
 
   return (
-    <div className={`flex w-full overflow-hidden rounded-xl border bg-white ${className}`}>
-      <span className="flex shrink-0 items-center border-r px-3 text-xs font-semibold text-[#1d1d1f]">+60</span>
+    <div className={`flex w-full overflow-hidden rounded-xl border border-gray-200 bg-white ${className}`}>
+      <span className="flex shrink-0 items-center border-r border-gray-200 px-3 text-xs font-semibold text-[#1d1d1f]">+60</span>
       <input
         {...props}
         value={localDigits}
