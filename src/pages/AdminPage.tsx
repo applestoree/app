@@ -1,6 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { KonstaProvider, Page, Block, Button as KButton, Card as KCard, ListInput, Toggle } from 'konsta/react';
+import {
+  App,
+  Badge,
+  Block,
+  BlockTitle,
+  Button,
+  Card,
+  Dialog,
+  KonstaProvider,
+  List,
+  ListInput,
+  ListItem,
+  Navbar,
+  Page,
+  Tabbar,
+  Toggle,
+  Toolbar,
+  ToolbarPane,
+} from 'konsta/react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { adminApi } from '../services/adminApi.ts';
 import { AdminBottomNav } from '../components/AdminBottomNav.tsx';
@@ -33,30 +51,21 @@ const jsonObject = (v: unknown): Record<string, any> => v && typeof v === 'objec
 const jsonArray = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
 function Field({ label, type = 'text', value, onChange, readOnly = false, min, max, step }: { label: string; type?: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; min?: string; max?: string; step?: string }) {
-  return <ListInput
-    outline
-    label={label}
-    type={type}
-    value={value}
-    readOnly={readOnly}
-    min={min}
-    max={max}
-    step={step}
-    onChange={e => onChange?.(e.target.value)}
-    inputClassName={readOnly ? 'bg-gray-50' : ''}
-    className="!my-0"
-  />;
+  return <ListInput outline label={label} type={type} value={value} readOnly={readOnly} min={min} max={max} step={step} onChange={e => onChange?.(e.target.value)} />;
 }
+
+function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return <ListInput outline label={label} type="select" dropdown value={value} onChange={e => onChange(e.target.value)}>
+    <option value="">—</option>
+    {options.map(option => <option key={option} value={option}>{option}</option>)}
+  </ListInput>;
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <Block strong inset outline className="!my-0 space-y-4">
-    <h2 className="font-semibold text-gray-900">{title}</h2>
-    {children}
-  </Block>;
-}
-function Card({ label, value }: { label: string; value: number }) {
-  return <KCard outline className="!my-0" header={label}>
-    <p className="text-2xl font-semibold">{value}</p>
-  </KCard>;
+  return <>
+    <BlockTitle>{title}</BlockTitle>
+    <Block strong inset outline>{children}</Block>
+  </>;
 }
 
 function productToForm(p: any): ProductForm {
@@ -72,6 +81,7 @@ function productToForm(p: any): ProductForm {
     main_features: main.map(str), sub_features: sub.map(str), headline: str(p.headline), rating: { count: str(p.rating?.count), average: str(p.rating?.average) }, reviews: { count: str(p.reviews?.count) }, created_at: str(p.created_at), updated_at: str(p.updated_at),
   };
 }
+
 function formToProduct(f: ProductForm) {
   const num = (v: string) => v === '' ? null : Number(v);
   const variant_size = f.variant_size.filter(v => v.size || v.price || v.sale_price).map(v => {
@@ -97,47 +107,116 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
   const toggleSizeDiscount = (i: number, active: boolean) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!active) return { ...v, discount_is_active: false, discount: '' }; const discount = v.discount === '' ? '10' : v.discount; const price = Number(v.price); const salePrice = Number.isFinite(price) ? Math.round((price - (price * Number(discount) / 100)) * 100) / 100 : v.sale_price; return { ...v, discount_is_active: true, discount, sale_price: String(salePrice) }; }));
   const updateSizePrice = (i: number, value: string) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!v.discount_is_active || v.discount === '') return { ...v, price: value }; const price = Number(value); const discount = Number(v.discount); const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : ''; return { ...v, price: value, sale_price: String(salePrice) }; }));
   const remove = (key: 'variant_color' | 'variant_size' | 'main_features' | 'sub_features', i: number) => set(key, form[key].filter((_, n) => n !== i));
-  return <div className="space-y-4">
-    <Section title="Basic Information"><Field label="Item Group ID" value={form.item_group_id} onChange={v => set('item_group_id', v)} /><Field label="Title" value={form.title} onChange={v => set('title', v)} /><Field label="Description" type="textarea" value={form.description} onChange={v => set('description', v)} /><div className="grid grid-cols-2 gap-3"><Field label="Availability" value={form.availability} onChange={v => set('availability', v)} /><Field label="Condition" value={form.condition} onChange={v => set('condition', v)} /><Field label="Brand" value={form.brand} onChange={v => set('brand', v)} /><Field label="Product Type" value={form.product_type} onChange={v => set('product_type', v)} /><Field label="Product Link" type="url" value={form.link} onChange={v => set('link', v)} /><Field label="Google Product Category" value={form.google_product_category} onChange={v => set('google_product_category', v)} /><Field label="Quantity to Sell on Facebook" type="number" value={form.quantity_to_sell_on_facebook} onChange={v => set('quantity_to_sell_on_facebook', v)} /></div></Section>
-    <Section title="Custom Labels"><div className="grid grid-cols-2 gap-3">{labels.map(k => <Field key={String(k)} label={`Custom Label ${String(k).slice(-1)}`} value={String(form[k])} onChange={v => set(k, v)} />)}</div></Section>
-    <Section title="Color Variants">{form.variant_color.map((v, i) => <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3"><Field label="Color" value={v.color} onChange={x => updateColor(i, 'color', x)} /><Field label="Image Link" type="url" value={v.image_link} onChange={x => updateColor(i, 'image_link', x)} /><Field label="Additional Image Link" type="url" value={v.additional_image_link} onChange={x => updateColor(i, 'additional_image_link', x)} /><KButton type="button" clear onClick={() => remove('variant_color', i)} disabled={form.variant_color.length === 1}>Remove</KButton></div>)}<KButton type="button" outline rounded onClick={() => set('variant_color', [...form.variant_color, { color: '', image_link: '', additional_image_link: '' }])}>+ Add Color Variant</KButton></Section>
-    <Section title="Size & Price Variants">{form.variant_size.map((v, i) => <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3"><Field label="Size" value={v.size} onChange={x => updateSize(i, 'size', x)} /><div className="grid grid-cols-2 gap-3"><Field label="Price" type="number" value={v.price} onChange={x => updateSizePrice(i, x)} /><Field label="Sale Price" type="number" value={v.sale_price} onChange={x => updateSize(i, 'sale_price', x)} readOnly={v.discount_is_active} /></div><div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5"><span className="text-sm text-gray-700">Discount Active</span><Toggle checked={v.discount_is_active} onChange={() => toggleSizeDiscount(i, !v.discount_is_active)} /></div>{v.discount_is_active && <Field label="Discount (%)" type="number" value={v.discount} min="0" max="100" step="0.01" onChange={x => updateSizeDiscount(i, x)} />}<KButton type="button" clear onClick={() => remove('variant_size', i)} disabled={form.variant_size.length === 1}>Remove</KButton></div>)}<KButton type="button" outline rounded onClick={() => set('variant_size', [...form.variant_size, emptySize()])}>+ Add Size Variant</KButton></Section>
-    <Section title="Features"><div><p className="mb-2 text-sm font-medium">Main Features</p>{form.main_features.map((v, i) => <div key={i} className="mb-2 flex gap-2"><input value={v} onChange={e => set('main_features', form.main_features.map((x, n) => n === i ? e.target.value : x))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" /><KButton type="button" clear onClick={() => remove('main_features', i)} disabled={form.main_features.length === 1}>Remove</KButton></div>)}<KButton type="button" clear onClick={() => set('main_features', [...form.main_features, ''])}>+ Add Main Feature</KButton></div><div><p className="mb-2 text-sm font-medium">Sub Features</p>{form.sub_features.map((v, i) => <div key={i} className="mb-2 flex gap-2"><input value={v} onChange={e => set('sub_features', form.sub_features.map((x, n) => n === i ? e.target.value : x))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" /><KButton type="button" clear onClick={() => remove('sub_features', i)} disabled={form.sub_features.length === 1}>Remove</KButton></div>)}<KButton type="button" clear onClick={() => set('sub_features', [...form.sub_features, ''])}>+ Add Sub Feature</KButton></div></Section>
-    <Section title="Marketing"><Field label="Headline" value={form.headline} onChange={v => set('headline', v)} /></Section>
-    <Section title="Rating"><div className="grid grid-cols-2 gap-3"><Field label="Rating Count" type="number" value={form.rating.count} onChange={v => set('rating', { ...form.rating, count: v })} /><Field label="Rating Average" type="number" value={form.rating.average} onChange={v => set('rating', { ...form.rating, average: v })} /></div></Section>
-    <Section title="Reviews"><Field label="Reviews Count" type="number" value={form.reviews.count} onChange={v => set('reviews', { count: v })} /></Section>
-    <Section title="System"><div className="grid grid-cols-2 gap-3"><Field label="Created At" type="datetime-local" value={form.created_at} readOnly /><Field label="Updated At" type="datetime-local" value={form.updated_at} readOnly /></div></Section>
-  </div>;
+
+  return <>
+    <Section title="Basic Information">
+      <List inset strong>
+        <Field label="Item Group ID" value={form.item_group_id} onChange={v => set('item_group_id', v)} />
+        <Field label="Title" value={form.title} onChange={v => set('title', v)} />
+        <Field label="Description" type="textarea" value={form.description} onChange={v => set('description', v)} inputClassName="!min-h-24" />
+        <Field label="Availability" value={form.availability} onChange={v => set('availability', v)} />
+        <Field label="Condition" value={form.condition} onChange={v => set('condition', v)} />
+        <Field label="Brand" value={form.brand} onChange={v => set('brand', v)} />
+        <Field label="Product Type" value={form.product_type} onChange={v => set('product_type', v)} />
+        <Field label="Product Link" type="url" value={form.link} onChange={v => set('link', v)} />
+        <Field label="Google Product Category" value={form.google_product_category} onChange={v => set('google_product_category', v)} />
+        <Field label="Quantity to Sell on Facebook" type="number" value={form.quantity_to_sell_on_facebook} onChange={v => set('quantity_to_sell_on_facebook', v)} />
+      </List>
+    </Section>
+
+    <Section title="Custom Labels">
+      <List inset strong>{labels.map(k => <Field key={String(k)} label={`Custom Label ${String(k).slice(-1)}`} value={String(form[k])} onChange={v => set(k, v)} />)}</List>
+    </Section>
+
+    <Section title="Color Variants">
+      {form.variant_color.map((v, i) => <List key={i} inset strong>
+        <Field label="Color" value={v.color} onChange={x => updateColor(i, 'color', x)} />
+        <Field label="Image Link" type="url" value={v.image_link} onChange={x => updateColor(i, 'image_link', x)} />
+        <Field label="Additional Image Link" type="url" value={v.additional_image_link} onChange={x => updateColor(i, 'additional_image_link', x)} />
+        <ListItem after={<Button clear disabled={form.variant_color.length === 1} onClick={() => remove('variant_color', i)}>Remove</Button>} title="Remove variant" />
+      </List>)}
+      <Button outline rounded onClick={() => set('variant_color', [...form.variant_color, { color: '', image_link: '', additional_image_link: '' }])}>Add Color Variant</Button>
+    </Section>
+
+    <Section title="Size & Price Variants">
+      {form.variant_size.map((v, i) => <List key={i} inset strong>
+        <Field label="Size" value={v.size} onChange={x => updateSize(i, 'size', x)} />
+        <Field label="Price" type="number" value={v.price} onChange={x => updateSizePrice(i, x)} />
+        <Field label="Sale Price" type="number" value={v.sale_price} onChange={x => updateSize(i, 'sale_price', x)} readOnly={v.discount_is_active} />
+        <ListItem title="Discount Active" after={<Toggle checked={v.discount_is_active} onChange={() => toggleSizeDiscount(i, !v.discount_is_active)} />} />
+        {v.discount_is_active && <Field label="Discount (%)" type="number" value={v.discount} min="0" max="100" step="0.01" onChange={x => updateSizeDiscount(i, x)} />}
+        <ListItem after={<Button clear disabled={form.variant_size.length === 1} onClick={() => remove('variant_size', i)}>Remove</Button>} title="Remove variant" />
+      </List>)}
+      <Button outline rounded onClick={() => set('variant_size', [...form.variant_size, emptySize()])}>Add Size Variant</Button>
+    </Section>
+
+    <Section title="Features">
+      <BlockTitle>
+
+Main Features</BlockTitle>
+      <List inset strong>{form.main_features.map((v, i) => <>
+        <Field key={`main-${i}`} label={`Feature ${i + 1}`} value={v} onChange={value => set('main_features', form.main_features.map((x, n) => n === i ? value : x))} />
+        <ListItem key={`main-remove-${i}`} title="Remove" after={<Button clear disabled={form.main_features.length === 1} onClick={() => remove('main_features', i)}>Remove</Button>} />
+      </>)}</List>
+      <Button clear onClick={() => set('main_features', [...form.main_features, ''])}>Add Main Feature</Button>
+      <BlockTitle>Sub Features</BlockTitle>
+      <List inset strong>{form.sub_features.map((v, i) => <>
+        <Field key={`sub-${i}`} label={`Feature ${i + 1}`} value={v} onChange={value => set('sub_features', form.sub_features.map((x, n) => n === i ? value : x))} />
+        <ListItem key={`sub-remove-${i}`} title="Remove" after={<Button clear disabled={form.sub_features.length === 1} onClick={() => remove('sub_features', i)}>Remove</Button>} />
+      </List>)}</List>
+      <Button clear onClick={() => set('sub_features', [...form.sub_features, ''])}>Add Sub Feature</Button>
+    </Section>
+
+    <Section title="Marketing"><List inset strong><Field label="Headline" value={form.headline} onChange={v => set('headline', v)} /></List></Section>
+    <Section title="Rating"><List inset strong><Field label="Rating Count" type="number" value={form.rating.count} onChange={v => set('rating', { ...form.rating, count: v })} /><Field label="Rating Average" type="number" value={form.rating.average} onChange={v => set('rating', { ...form.rating, average: v })} /></List></Section>
+    <Section title="Reviews"><List inset strong><Field label="Reviews Count" type="number" value={form.reviews.count} onChange={v => set('reviews', { count: v })} /></List></Section>
+    <Section title="System"><List inset strong><Field label="Created At" type="datetime-local" value={form.created_at} readOnly /><Field label="Updated At" type="datetime-local" value={form.updated_at} readOnly /></List></Section>
+  </>;
 }
 
 function OrdersView({ orders, selectedOrder, onSelectOrder, onStatusChange, onPaymentChange }: { orders: any[]; selectedOrder: any | null; onSelectOrder: (order: any | null) => void; onStatusChange: (id: number | string, status: string) => Promise<void>; onPaymentChange: (id: number | string, payment: any) => Promise<void> }) {
-  const renderOrderDetail = (o: any) => {
+  if (selectedOrder) {
+    const o = selectedOrder;
     const address = jsonObject(o.address); const store = jsonObject(o.store); const shipping = jsonObject(o.shipping); const voucher = jsonObject(o.voucher); const payment = jsonObject(o.payment); const items = jsonArray(o.items);
     const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
     const destination = deliveryType === 'store_pickup' ? (store.address || store.name || 'Store pickup') : (address.address || [address.city, address.state, address.postcode].filter(Boolean).join(', ') || 'Address not provided');
-    return <Section title={`Order #${o.id}`}>
-      <div className="flex items-center justify-between gap-3"><KButton type="button" outline rounded onClick={() => onSelectOrder(null)}>← Back to Orders</KButton><select value={o.status || 'pending'} onChange={e => void onStatusChange(o.id, e.target.value)} className="shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm">{ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-      <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Created At</p><p className="mt-1 text-sm text-gray-800">{o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}</p></div>
-      <Section title="Customer"><p className="text-sm text-gray-800">{o.phone || 'Guest'}</p></Section>
-      <Section title="Items"><div className="space-y-2">{items.length ? items.map((item: any, index: number) => { const product = jsonObject(item.product); const title = item.title || product.title || item.name || item.item_group_id || `Item ${index + 1}`; const color = item.selectedColor || item.color || ''; const size = item.selectedSize || item.size || ''; const quantity = Number(item.quantity || 1); const price = item.sale_price ?? item.price ?? product.sale_price ?? product.price ?? 0; return <div key={`${String(o.id)}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-gray-900">{title}</p><p className="text-xs text-gray-500">{[color, size].filter(Boolean).join(' · ') || 'Variant unavailable'} · Qty {quantity}</p></div><p className="shrink-0 text-sm font-medium">{money(Number(price) * quantity)}</p></div>; }) : <p className="text-sm text-gray-500">No item details.</p>}</div></Section>
-      <Section title="Fulfillment"><div className="rounded-xl bg-gray-50 p-3"><p className="text-sm font-medium">{deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'}</p><p className="mt-1 text-xs text-gray-500">{shipping.shipping_method || shipping.method || '—'}</p></div></Section>
-      <Section title="Payment"><div className="space-y-3"><div><p className="text-xs text-gray-500">Method</p><select value={payment.method || ''} onChange={e => void onPaymentChange(o.id, { ...payment, method: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"><option value="">—</option>{PAYMENT_METHODS.map(method => <option key={method} value={method}>{method}</option>)}</select></div><div><p className="text-xs text-gray-500">Status</p><select value={payment.status || ''} onChange={e => void onPaymentChange(o.id, { ...payment, status: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"><option value="">—</option>{PAYMENT_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}</select></div><div className="rounded-xl border border-gray-200 p-3 space-y-3"><p className="text-sm font-semibold text-gray-900">DuitNow QR</p><div className="flex items-center justify-between"><span className="text-sm text-gray-700">Active</span><Toggle checked={payment.duitnow_qr?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), is_active: payment.duitnow_qr?.is_active !== true } })} /></div><Field label="Image" type="url" value={str(payment.duitnow_qr?.img)} onChange={value => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), img: value } })} /></div><div className="rounded-xl border border-gray-200 p-3 space-y-3"><p className="text-sm font-semibold text-gray-900">Bank Transfer</p><div className="flex items-center justify-between"><span className="text-sm text-gray-700">Active</span><Toggle checked={payment.transferbank?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), is_active: payment.transferbank?.is_active !== true } })} /></div><Field label="Name" value={str(payment.transferbank?.name)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), name: value } })} /><Field label="Number" value={str(payment.transferbank?.number)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), number: value } })} /></div></div></Section>
-      <Section title="Summary"><div className="space-y-1 text-sm"><div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(o.subtotal)}</span></div><div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{money(o.shipping_fee || shipping.fee)}</span></div><div className="flex justify-between"><span className="text-gray-500">Discount</span><span>- {money(o.discount || voucher.discount)}</span></div><div className="flex justify-between pt-2 text-base font-semibold"><span>Total</span><span>{money(o.total)}</span></div></div></Section>
-      {(voucher.code || Number(o.discount || voucher.discount || 0) > 0) && <Section title="Voucher"><p className="text-sm">{voucher.code || '—'} · Discount {money(o.discount || voucher.discount)}</p></Section>}
-      <Section title="Destination"><p className="text-sm text-gray-800">{destination}</p></Section>
-    </Section>;
-  };
+    return <>
+      <Navbar title={`Order #${o.id}`} left={<Button clear onClick={() => onSelectOrder(null)}>Back</Button>} />
+      <Section title="Order">
+        <List inset strong>
+          <ListItem title="Created At" after={o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'} />
+          <ListItem title="Customer" after={o.phone || 'Guest'} />
+          <ListItem title="Status" after={<SelectField label="" value={o.status || 'pending'} options={ORDER_STATUSES} onChange={v => void onStatusChange(o.id, v)} />} />
+        </List>
+      </Section>
+      <Section title="Items">
+        <List inset strong>{items.length ? items.map((item: any, index: number) => { const product = jsonObject(item.product); const title = item.title || product.title || item.name || item.item_group_id || `Item ${index + 1}`; const color = item.selectedColor || item.color || ''; const size = item.selectedSize || item.size || ''; const quantity = Number(item.quantity || 1); const price = item.sale_price ?? item.price ?? product.sale_price ?? product.price ?? 0; return <ListItem key={`${String(o.id)}-${index}`} title={title} subtitle={[color, size].filter(Boolean).join(' · ') || 'Variant unavailable'} after={`${money(Number(price) * quantity)} · Qty ${quantity}`} />; }) : <ListItem title="No item details." />}</List>
+      </Section>
+      <Section title="Fulfillment"><List inset strong><ListItem title={deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'} subtitle={shipping.shipping_method || shipping.method || '—'} /><ListItem title="Destination" subtitle={destination} /></List></Section>
+      <Section title="Payment">
+        <List inset strong>
+          <SelectField label="Method" value={payment.method || ''} options={PAYMENT_METHODS} onChange={value => void onPaymentChange(o.id, { ...payment, method: value })} />
+          <SelectField label="Status" value={payment.status || ''} options={PAYMENT_STATUSES} onChange={value => void onPaymentChange(o.id, { ...payment, status: value })} />
+          <ListItem title="DuitNow QR" after={<Toggle checked={payment.duitnow_qr?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), is_active: payment.duitnow_qr?.is_active !== true } })} />} />
+          <Field label="DuitNow QR Image" type="url" value={str(payment.duitnow_qr?.img)} onChange={value => void onPaymentChange(o.id, { ...payment, duitnow_qr: { ...jsonObject(payment.duitnow_qr), img: value } })} />
+          <ListItem title="Bank Transfer" after={<Toggle checked={payment.transferbank?.is_active === true} onChange={() => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), is_active: payment.transferbank?.is_active !== true } })} />} />
+          <Field label="Bank Name" value={str(payment.transferbank?.name)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), name: value } })} />
+          <Field label="Bank Number" value={str(payment.transferbank?.number)} onChange={value => void onPaymentChange(o.id, { ...payment, transferbank: { ...jsonObject(payment.transferbank), number: value } })} />
+        </List>
+      </Section>
+      <Section title="Summary"><List inset strong><ListItem title="Subtotal" after={money(o.subtotal)} /><ListItem title="Shipping" after={money(o.shipping_fee || shipping.fee)} /><ListItem title="Discount" after={`- ${money(o.discount || voucher.discount)}`} /><ListItem title="Total" after={money(o.total)} /></List></Section>
+      {(voucher.code || Number(o.discount || voucher.discount || 0) > 0) && <Section title="Voucher"><List inset strong><ListItem title={voucher.code || '—'} after={`Discount ${money(o.discount || voucher.discount)}`} /></List></Section>}
+    </>;
+  }
 
-  if (selectedOrder) return <div className="space-y-4">{renderOrderDetail(selectedOrder)}</div>;
-
-  return <Section title="Orders"><div className="flex items-end justify-between"><div><p className="text-sm text-gray-500">{orders.length} order{orders.length === 1 ? '' : 's'}</p></div></div>
-    {orders.length === 0 ? <p className="text-sm text-gray-500">No orders.</p> : <div className="space-y-3">{orders.map(o => {
-      const shipping = jsonObject(o.shipping); const payment = jsonObject(o.payment); const store = jsonObject(o.store); const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
-      return <button key={String(o.id)} type="button" onClick={() => onSelectOrder(o)} className="block w-full rounded-2xl border border-gray-200 bg-white p-4 text-left transition hover:border-gray-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-gray-900">Order #{o.id}</p><p className="text-xs text-gray-500">{o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}</p><p className="mt-1 text-sm text-gray-600">{o.phone || 'Guest'}</p></div><span className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">{o.status || 'pending'}</span></div>
-        <div className="mt-3 flex items-center justify-between gap-3 text-sm"><span className="text-gray-500">{deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'} · {payment.method || 'Payment not set'}</span><span className="font-semibold text-gray-900">{money(o.total)}</span></div>
-      </button>;
-    })}</div>}
+  return <Section title="Orders">
+    <List inset strong>
+      <ListItem title="Order Count" after={<Badge>{orders.length}</Badge>} />
+      {orders.length === 0 ? <ListItem title="No orders." /> : orders.map(o => {
+        const shipping = jsonObject(o.shipping); const payment = jsonObject(o.payment); const store = jsonObject(o.store); const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
+        return <ListItem key={String(o.id)} title={`Order #${o.id}`} subtitle={`${o.phone || 'Guest'} · ${o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}`} text={`${deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'} · ${payment.method || 'Payment not set'}`} after={<>{o.status || 'pending'} · {money(o.total)}</>} link onClick={() => onSelectOrder(o)} />;
+      })}
+    </List>
   </Section>;
 }
 
@@ -147,6 +226,8 @@ export function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [products, setProducts] = useState<any[]>([]); const [orders, setOrders] = useState<any[]>([]); const [users, setUsers] = useState<any[]>([]); const [reviews, setReviews] = useState<any[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm()); const [editing, setEditing] = useState(false); const [productCrudOpen, setProductCrudOpen] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   const load = useCallback(async () => { setBusy(true); setError(''); try { const [p, o, u, r] = await Promise.all([adminApi.products(), adminApi.orders(), adminApi.users(), adminApi.reviews()]); setProducts(Array.isArray(p.data) ? p.data : []); setOrders(Array.isArray(o.data) ? o.data : []); setUsers(Array.isArray(u.data) ? u.data : []); setReviews(Array.isArray(r.data) ? r.data : []); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load admin data'); } finally { setBusy(false); } }, []);
   useEffect(() => { if (user?.role === 'admin') void load(); }, [user?.role, load]);
   const stats = useMemo(() => ({ products: products.length, orders: orders.length, users: users.length, reviews: reviews.length }), [products, orders, users, reviews]);
@@ -155,25 +236,66 @@ export function AdminPage() {
   const createProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.createProduct(value); setForm(emptyForm()); setEditing(false); setProductCrudOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Create failed'); } };
   const updateProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.updateProduct(value.item_group_id, value); setEditing(false); setProductCrudOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); } };
   const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setView('products'); };
-  const deleteProduct = async (id: string) => { if (!window.confirm(`Delete ${id}?`)) return; try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } };
+  const deleteProduct = async (id: string) => { try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } setDeleteId(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); setDeleteId(null); } };
   const updateOrderStatus = async (id: number | string, status: string) => { try { await adminApi.updateOrderStatus(id, status); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Status update failed'); } };
-  const updateOrderPayment = async (id: number | string, payment: any) => { try { await adminApi.updateOrderPayment(id, payment); setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, payment } : order)); } catch (e) { setError(e instanceof Error ? e.message : 'Payment update failed'); } };
+  const updateOrderPayment = async (id: number | string, payment: any) => { try { await adminApi.updateOrderPayment(id, payment); setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, payment } : order)); setSelectedOrder((prev: any) => prev && String(prev.id) === String(id) ? { ...prev, payment } : prev); } catch (e) { setError(e instanceof Error ? e.message : 'Payment update failed'); } };
 
-  const productPage = view === 'products'; const productCrudMode = productPage && productCrudOpen;
+  const productCrudMode = view === 'products' && productCrudOpen;
   const closeProductCrud = () => { setProductCrudOpen(false); setForm(emptyForm()); setEditing(false); };
 
-  return <KonstaProvider theme="ios" dark><Page className="w-full max-w-[500px] mx-auto min-h-[100dvh] bg-gray-50 flex flex-col">
-    {!selectedOrder && (productCrudMode ? <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><h1 className="text-lg font-semibold text-gray-900">Product CRUD</h1><KButton type="button" clear onClick={closeProductCrud} aria-label="Close Product CRUD">×</KButton></div></header> : <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div><div className="flex items-center gap-2"><KButton type="button" outline rounded onClick={() => void load()} disabled={busy}>{busy ? 'Loading…' : 'Refresh'}</KButton><KButton type="button" outline rounded onClick={logout}>Logout</KButton></div></div></header>)}
-    {error && <div className="w-full shrink-0 px-4 pt-3"><Block strong inset outline className="!my-0 text-sm text-red-700">{error}</Block></div>}
-    <div className="w-full flex-1 min-h-0 overflow-y-auto p-4 pb-6">
-      {view === 'dashboard' && <section className="space-y-4"><div className="grid grid-cols-2 gap-3"><Card label="Products" value={stats.products} /><Card label="Orders" value={stats.orders} /><Card label="Users" value={stats.users} /><Card label="Reviews" value={stats.reviews} /></div><Section title="Overview"><p className="text-sm text-gray-500">Manage products, orders, users and reviews from the admin views.</p></Section></section>}
-      {view === 'products' && !productCrudOpen && <section className="space-y-4"><Section title="Product List"><div className="mb-3 flex justify-end"><KButton type="button" rounded onClick={() => { setForm(emptyForm()); setEditing(false); setProductCrudOpen(true); }}>+ New Product</KButton></div>{products.length === 0 ? <p className="text-sm text-gray-500">No products.</p> : <div className="grid grid-cols-2 gap-3">{products.map(p => { const imageUrl = p.variant_image?.[0]?.image_link; return <KCard key={p.item_group_id} outline className="!my-0 overflow-hidden" contentWrap={false}><div className="aspect-square w-full overflow-hidden bg-gray-50">{imageUrl ? <img src={imageUrl} alt={p.title || p.item_group_id} className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No image</div>}</div><div className="p-3"><p className="font-medium">{p.title || p.item_group_id}</p><p className="text-xs text-gray-500">{p.item_group_id}</p><div className="mt-2 flex items-center justify-between gap-2"><KButton type="button" clear onClick={() => editProduct(p)}>Edit</KButton><KButton type="button" clear className="!text-red-600" onClick={() => void deleteProduct(p.item_group_id)}>Delete</KButton></div></div></KCard>; })}</div>}</Section></section>}
-      {view === 'products' && productCrudOpen && <ProductForm form={form} setForm={setForm}/>} 
-      {view === 'orders' && <OrdersView orders={orders} selectedOrder={selectedOrder} onSelectOrder={setSelectedOrder} onStatusChange={updateOrderStatus} onPaymentChange={updateOrderPayment} />}
-      {view === 'users' && <section className="space-y-3">{users.map(u => <KCard key={u.phone} outline className="!my-0"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{u.name || u.phone}</p><p className="text-xs text-gray-500">{u.phone}</p></div><select value={u.role || 'customer'} onChange={async e => { try { await adminApi.updateUserRole(u.phone, e.target.value); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Role update failed'); } }} className="rounded-lg border border-gray-200 px-2 py-1 text-sm"><option value="customer">customer</option><option value="admin">admin</option></select></div></KCard>)}</section>}
-      {view === 'reviews' && <section className="space-y-3">{reviews.map(r => <KCard key={r.id} outline className="!my-0"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.name} · {r.rating}/5</p><p className="mt-1 text-sm text-gray-600">{r.comment}</p><p className="mt-1 text-xs text-gray-400">{r.item_group_id} · {r.phone}</p></div><KButton type="button" clear className="!text-red-600" onClick={async () => { if (!window.confirm('Delete this review?')) return; try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } }}>Delete</KButton></div></KCard>)}</section>}
-    </div>
-    {productCrudMode && <div className="w-full shrink-0 border-t border-gray-200 bg-white p-3"><div className="flex gap-2"><KButton type="button" rounded className="flex-1" onClick={() => void createProduct()} disabled={busy}>Create</KButton><KButton type="button" rounded outline className="flex-1" onClick={() => void updateProduct()} disabled={busy || !editing}>Update</KButton></div></div>}
-    {!productCrudMode && !selectedOrder && <div className="w-full shrink-0"><AdminBottomNav activeView={view} onViewChange={setView} /></div>}
-  </Page></KonstaProvider>;
+  return <KonstaProvider theme="ios">
+    <App theme="ios" className="w-full max-w-[500px] mx-auto">
+      <Page className="w-full min-h-full flex flex-col">
+        {!selectedOrder && <Navbar title={productCrudMode ? 'Product CRUD' : 'Admin'} subtitle={!productCrudMode ? 'Apple Store Malaysia' : undefined} right={!productCrudMode ? <><Button clear disabled={busy} onClick={() => void load()}>{busy ? 'Loading…' : 'Refresh'}</Button><Button clear onClick={logout}>Logout</Button></> : <Button clear onClick={closeProductCrud}>Close</Button>} />}
+        {error && <Block strong inset outline><p>{error}</p></Block>}
+
+        <main className="w-full flex-1 min-h-0 overflow-y-auto">
+          {view === 'dashboard' && !selectedOrder && <>
+            <BlockTitle>Dashboard</BlockTitle>
+            <List strong inset outline>
+              <ListItem title="Products" after={<Badge>{stats.products}</Badge>} />
+              <ListItem title="Orders" after={<Badge>{stats.orders}</Badge>} />
+              <ListItem title="Users" after={<Badge>{stats.users}</Badge>} />
+              <ListItem title="Reviews" after={<Badge>{stats.reviews}</Badge>} />
+            </List>
+            <Block strong inset><p>Manage products, orders, users and reviews from the admin views.</p></Block>
+          </>}
+
+          {view === 'products' && !productCrudOpen && <>
+            <BlockTitle>Products</BlockTitle>
+            <Block strong inset>
+              <Button rounded onClick={() => { setForm(emptyForm()); setEditing(false); setProductCrudOpen(true); }}>New Product</Button>
+            </Block>
+            <List strong inset outline>
+              {products.length === 0 ? <ListItem title="No products." /> : products.map(p => {
+                const imageUrl = p.variant_image?.[0]?.image_link || p.variant_color?.[0]?.image_link;
+                return <ListItem key={p.item_group_id} title={p.title || p.item_group_id} subtitle={p.item_group_id} text={imageUrl ? 'Image available' : 'No image'} after={<><Button clear onClick={() => editProduct(p)}>Edit</Button><Button clear onClick={() => setDeleteId(p.item_group_id)}>Delete</Button></>} />;
+              })}
+            </List>
+          </>}
+
+          {view === 'products' && productCrudOpen && <ProductForm form={form} setForm={setForm} />}
+          {view === 'orders' && <OrdersView orders={orders} selectedOrder={selectedOrder} onSelectOrder={setSelectedOrder} onStatusChange={updateOrderStatus} onPaymentChange={updateOrderPayment} />}
+
+          {view === 'users' && <Section title="Users"><List strong inset outline>{users.length === 0 ? <ListItem title="No users." /> : users.map(u => <ListItem key={u.phone} title={u.name || u.phone} subtitle={u.phone} after={<SelectField label="" value={u.role || 'customer'} options={['customer', 'admin']} onChange={async value => { try { await adminApi.updateUserRole(u.phone, value); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Role update failed'); } }} />} />)}</List></Section>}
+
+          {view === 'reviews' && <Section title="Reviews"><List strong inset outline>{reviews.length === 0 ? <ListItem title="No reviews." /> : reviews.map(r => <ListItem key={r.id} title={`${r.name || r.phone || 'Guest'} · ${r.rating}/5`} subtitle={r.comment} text={`${r.item_group_id || ''}${r.phone ? ` · ${r.phone}` : ''}`} after={<Button clear onClick={() => void (async () => { try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } })()}>Delete</Button>} />)}</List></Section>}
+        </main>
+
+        {productCrudMode && <Toolbar bottom><ToolbarPane><Button rounded className="w-full" onClick={() => void createProduct()} disabled={busy}>{editing ? 'Create New' : 'Create'}</Button><Button rounded outline className="w-full" onClick={() => void updateProduct()} disabled={busy || !editing}>Update</Button></ToolbarPane></Toolbar>}
+        {!productCrudMode && !selectedOrder && <AdminBottomNav activeView={view} onViewChange={setView} />}
+      </Page>
+
+      <Dialog
+        opened={deleteId !== null}
+        title="Delete Product"
+        text={deleteId ? `Delete ${deleteId}?` : ''}
+        buttons={[
+          { text: 'Cancel', onClick: () => setDeleteId(null) },
+          { text: 'Delete', strong: true, onClick: () => deleteId && void deleteProduct(deleteId) },
+        ]}
+        onBackdropClick={() => setDeleteId(null)}
+      />
+    </App>
+  </KonstaProvider>;
 }
