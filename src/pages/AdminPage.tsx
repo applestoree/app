@@ -10,24 +10,25 @@ type ProductForm = {
   google_product_category: string; product_type: string; quantity_to_sell_on_facebook: string;
   custom_label_0: string; custom_label_1: string; custom_label_2: string; custom_label_3: string; custom_label_4: string; custom_label_5: string;
   variant_color: { color: string; image_link: string; additional_image_link: string }[];
-  variant_size: { size: string; price: string; sale_price: string }[];
+  variant_size: { size: string; price: string; sale_price: string; discount_is_active: boolean; discount: string }[];
   main_features: string[]; sub_features: string[]; headline: string;
   rating: { count: string; average: string }; reviews: { count: string };
   created_at: string; updated_at: string;
 };
 
 const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+const emptySize = () => ({ size: '', price: '', sale_price: '', discount_is_active: false, discount: '' });
 const emptyForm = (): ProductForm => ({
   item_group_id: '', title: '', description: '', availability: '', condition: '', brand: '', link: '', google_product_category: '', product_type: '', quantity_to_sell_on_facebook: '',
   custom_label_0: '', custom_label_1: '', custom_label_2: '', custom_label_3: '', custom_label_4: '', custom_label_5: '',
-  variant_color: [{ color: '', image_link: '', additional_image_link: '' }], variant_size: [{ size: '', price: '', sale_price: '' }],
+  variant_color: [{ color: '', image_link: '', additional_image_link: '' }], variant_size: [emptySize()],
   main_features: [''], sub_features: [''], headline: '', rating: { count: '', average: '' }, reviews: { count: '' }, created_at: '', updated_at: '',
 });
 const str = (v: unknown) => v == null ? '' : String(v);
 
-function Field({ label, type = 'text', value, onChange, readOnly = false }: { label: string; type?: string; value: string; onChange?: (v: string) => void; readOnly?: boolean }) {
+function Field({ label, type = 'text', value, onChange, readOnly = false, min, max, step }: { label: string; type?: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; min?: string; max?: string; step?: string }) {
   const cls = 'mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-gray-400';
-  return <label className="block text-sm text-gray-700"><span>{label}</span>{type === 'textarea' ? <textarea value={value} onChange={e => onChange?.(e.target.value)} readOnly={readOnly} className={`${cls} min-h-24 resize-y`} /> : <input type={type} value={value} onChange={e => onChange?.(e.target.value)} readOnly={readOnly} className={cls} />}</label>;
+  return <label className="block text-sm text-gray-700"><span>{label}</span>{type === 'textarea' ? <textarea value={value} onChange={e => onChange?.(e.target.value)} readOnly={readOnly} className={`${cls} min-h-24 resize-y`} /> : <input type={type} value={value} onChange={e => onChange?.(e.target.value)} readOnly={readOnly} min={min} max={max} step={step} className={`${cls} ${readOnly ? 'bg-gray-50' : ''}`} />}</label>;
 }
 function Section({ title, children }: { title: string; children: React.ReactNode }) { return <section className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4"><h2 className="font-semibold text-gray-900">{title}</h2>{children}</section>; }
 function Card({ label, value }: { label: string; value: number }) { return <div className="rounded-2xl border border-gray-200 bg-white p-4"><p className="text-xs text-gray-500">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>; }
@@ -41,16 +42,24 @@ function productToForm(p: any): ProductForm {
     ...emptyForm(), item_group_id: str(p.item_group_id), title: str(p.title), description: str(p.description), availability: str(p.availability), condition: str(p.condition), brand: str(p.brand), link: str(p.link), google_product_category: str(p.google_product_category), product_type: str(p.product_type), quantity_to_sell_on_facebook: str(p.quantity_to_sell_on_facebook),
     custom_label_0: str(p.custom_label_0), custom_label_1: str(p.custom_label_1), custom_label_2: str(p.custom_label_2), custom_label_3: str(p.custom_label_3), custom_label_4: str(p.custom_label_4), custom_label_5: str(p.custom_label_5),
     variant_color: colors.map((v: any) => ({ color: str(v.color), image_link: str(v.image_link), additional_image_link: str(v.additional_image_link) })),
-    variant_size: sizes.map((v: any) => ({ size: str(v.size), price: str(v.price), sale_price: str(v.sale_price) })),
+    variant_size: sizes.map((v: any) => ({ size: str(v.size), price: str(v.price), sale_price: str(v.sale_price), discount_is_active: v.discount_is_active === true, discount: str(v.discount) })),
     main_features: main.map(str), sub_features: sub.map(str), headline: str(p.headline), rating: { count: str(p.rating?.count), average: str(p.rating?.average) }, reviews: { count: str(p.reviews?.count) }, created_at: str(p.created_at), updated_at: str(p.updated_at),
   };
 }
 function formToProduct(f: ProductForm) {
   const num = (v: string) => v === '' ? null : Number(v);
+  const variant_size = f.variant_size.filter(v => v.size || v.price || v.sale_price).map(v => {
+    const price = num(v.price);
+    const salePrice = num(v.sale_price);
+    const discount = v.discount === '' ? null : Number(v.discount);
+    if (price != null && salePrice != null && !(price > salePrice)) throw new Error(`Variant size ${v.size || '(unnamed)'}: Price must be greater than Sale Price`);
+    if (v.discount_is_active && (discount == null || discount < 0 || discount > 100)) throw new Error(`Variant size ${v.size || '(unnamed)'}: Discount must be between 0 and 100%`);
+    return { size: v.size, price, sale_price: salePrice, discount_is_active: v.discount_is_active, discount };
+  });
   return {
     item_group_id: f.item_group_id.trim(), title: f.title.trim(), description: f.description, availability: f.availability.trim(), condition: f.condition.trim(), brand: f.brand.trim(), link: f.link.trim(), google_product_category: f.google_product_category.trim(), product_type: f.product_type.trim(), quantity_to_sell_on_facebook: num(f.quantity_to_sell_on_facebook),
     custom_label_0: f.custom_label_0, custom_label_1: f.custom_label_1, custom_label_2: f.custom_label_2, custom_label_3: f.custom_label_3, custom_label_4: f.custom_label_4, custom_label_5: f.custom_label_5,
-    variant_color: f.variant_color.filter(v => v.color || v.image_link || v.additional_image_link), variant_size: f.variant_size.filter(v => v.size || v.price || v.sale_price).map(v => ({ size: v.size, price: num(v.price), sale_price: num(v.sale_price) })),
+    variant_color: f.variant_color.filter(v => v.color || v.image_link || v.additional_image_link), variant_size,
     main_features: f.main_features.map(v => v.trim()).filter(Boolean), sub_features: f.sub_features.map(v => v.trim()).filter(Boolean), headline: f.headline, rating: { count: num(f.rating.count), average: num(f.rating.average) }, reviews: { count: num(f.reviews.count) },
   };
 }
@@ -59,13 +68,41 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
   const set = (key: keyof ProductForm, value: unknown) => setForm(prev => ({ ...prev, [key]: value }));
   const labels = Array.from({ length: 6 }, (_, i) => `custom_label_${i}` as keyof ProductForm);
   const updateColor = (i: number, key: keyof ProductForm['variant_color'][number], value: string) => set('variant_color', form.variant_color.map((v, n) => n === i ? { ...v, [key]: value } : v));
-  const updateSize = (i: number, key: keyof ProductForm['variant_size'][number], value: string) => set('variant_size', form.variant_size.map((v, n) => n === i ? { ...v, [key]: value } : v));
+  const updateSize = (i: number, key: keyof ProductForm['variant_size'][number], value: string | boolean) => set('variant_size', form.variant_size.map((v, n) => n === i ? { ...v, [key]: value } : v));
+  const updateSizeDiscount = (i: number, value: string) => {
+    const discount = Number(value);
+    set('variant_size', form.variant_size.map((v, n) => {
+      if (n !== i) return v;
+      const price = Number(v.price);
+      const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : v.sale_price;
+      return { ...v, discount: value, sale_price: value === '' ? v.sale_price : String(salePrice) };
+    }));
+  };
+  const toggleSizeDiscount = (i: number, active: boolean) => {
+    set('variant_size', form.variant_size.map((v, n) => {
+      if (n !== i) return v;
+      if (!active) return { ...v, discount_is_active: false, discount: '' };
+      const discount = v.discount === '' ? '10' : v.discount;
+      const price = Number(v.price);
+      const salePrice = Number.isFinite(price) ? Math.round((price - (price * Number(discount) / 100)) * 100) / 100 : v.sale_price;
+      return { ...v, discount_is_active: true, discount, sale_price: String(salePrice) };
+    }));
+  };
+  const updateSizePrice = (i: number, value: string) => {
+    set('variant_size', form.variant_size.map((v, n) => {
+      if (n !== i) return v;
+      if (!v.discount_is_active || v.discount === '') return { ...v, price: value };
+      const price = Number(value); const discount = Number(v.discount);
+      const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : '';
+      return { ...v, price: value, sale_price: String(salePrice) };
+    }));
+  };
   const remove = (key: 'variant_color' | 'variant_size' | 'main_features' | 'sub_features', i: number) => set(key, form[key].filter((_, n) => n !== i));
   return <div className="space-y-4">
     <Section title="Basic Information"><Field label="Item Group ID" value={form.item_group_id} onChange={v => set('item_group_id', v)} /><Field label="Title" value={form.title} onChange={v => set('title', v)} /><Field label="Description" type="textarea" value={form.description} onChange={v => set('description', v)} /><div className="grid grid-cols-2 gap-3"><Field label="Availability" value={form.availability} onChange={v => set('availability', v)} /><Field label="Condition" value={form.condition} onChange={v => set('condition', v)} /><Field label="Brand" value={form.brand} onChange={v => set('brand', v)} /><Field label="Product Type" value={form.product_type} onChange={v => set('product_type', v)} /><Field label="Product Link" type="url" value={form.link} onChange={v => set('link', v)} /><Field label="Google Product Category" value={form.google_product_category} onChange={v => set('google_product_category', v)} /><Field label="Quantity to Sell on Facebook" type="number" value={form.quantity_to_sell_on_facebook} onChange={v => set('quantity_to_sell_on_facebook', v)} /></div></Section>
     <Section title="Custom Labels"><div className="grid grid-cols-2 gap-3">{labels.map(k => <Field key={String(k)} label={`Custom Label ${String(k).slice(-1)}`} value={String(form[k])} onChange={v => set(k, v)} />)}</div></Section>
     <Section title="Color Variants">{form.variant_color.map((v, i) => <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3"><Field label="Color" value={v.color} onChange={x => updateColor(i, 'color', x)} /><Field label="Image Link" type="url" value={v.image_link} onChange={x => updateColor(i, 'image_link', x)} /><Field label="Additional Image Link" type="url" value={v.additional_image_link} onChange={x => updateColor(i, 'additional_image_link', x)} /><button type="button" onClick={() => remove('variant_color', i)} disabled={form.variant_color.length === 1} className="text-sm text-red-600 disabled:opacity-40">Remove</button></div>)}<button type="button" onClick={() => set('variant_color', [...form.variant_color, { color: '', image_link: '', additional_image_link: '' }])} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">+ Add Color Variant</button></Section>
-    <Section title="Size & Price Variants">{form.variant_size.map((v, i) => <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3"><Field label="Size" value={v.size} onChange={x => updateSize(i, 'size', x)} /><div className="grid grid-cols-2 gap-3"><Field label="Price" type="number" value={v.price} onChange={x => updateSize(i, 'price', x)} /><Field label="Sale Price" type="number" value={v.sale_price} onChange={x => updateSize(i, 'sale_price', x)} /></div><button type="button" onClick={() => remove('variant_size', i)} disabled={form.variant_size.length === 1} className="text-sm text-red-600 disabled:opacity-40">Remove</button></div>)}<button type="button" onClick={() => set('variant_size', [...form.variant_size, { size: '', price: '', sale_price: '' }])} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">+ Add Size Variant</button></Section>
+    <Section title="Size & Price Variants">{form.variant_size.map((v, i) => <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3"><Field label="Size" value={v.size} onChange={x => updateSize(i, 'size', x)} /><div className="grid grid-cols-2 gap-3"><Field label="Price" type="number" value={v.price} onChange={x => updateSizePrice(i, x)} /><Field label="Sale Price" type="number" value={v.sale_price} onChange={x => updateSize(i, 'sale_price', x)} readOnly={v.discount_is_active} /></div><div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5"><span className="text-sm text-gray-700">Discount Active</span><button type="button" role="switch" aria-checked={v.discount_is_active} onClick={() => toggleSizeDiscount(i, !v.discount_is_active)} className={`rounded-full px-3 py-1 text-xs font-medium ${v.discount_is_active ? 'bg-black text-white' : 'border border-gray-200 text-gray-600'}`}>{v.discount_is_active ? 'ON' : 'OFF'}</button></div>{v.discount_is_active && <Field label="Discount (%)" type="number" value={v.discount} min="0" max="100" step="0.01" onChange={x => updateSizeDiscount(i, x)} />}<button type="button" onClick={() => remove('variant_size', i)} disabled={form.variant_size.length === 1} className="text-sm text-red-600 disabled:opacity-40">Remove</button></div>)}<button type="button" onClick={() => set('variant_size', [...form.variant_size, emptySize()])} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">+ Add Size Variant</button></Section>
     <Section title="Features"><div><p className="mb-2 text-sm font-medium">Main Features</p>{form.main_features.map((v, i) => <div key={i} className="mb-2 flex gap-2"><input value={v} onChange={e => set('main_features', form.main_features.map((x, n) => n === i ? e.target.value : x))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" /><button type="button" onClick={() => remove('main_features', i)} disabled={form.main_features.length === 1} className="text-sm text-red-600 disabled:opacity-40">Remove</button></div>)}<button type="button" onClick={() => set('main_features', [...form.main_features, ''])} className="text-sm underline">+ Add Main Feature</button></div><div><p className="mb-2 text-sm font-medium">Sub Features</p>{form.sub_features.map((v, i) => <div key={i} className="mb-2 flex gap-2"><input value={v} onChange={e => set('sub_features', form.sub_features.map((x, n) => n === i ? e.target.value : x))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" /><button type="button" onClick={() => remove('sub_features', i)} disabled={form.sub_features.length === 1} className="text-sm text-red-600 disabled:opacity-40">Remove</button></div>)}<button type="button" onClick={() => set('sub_features', [...form.sub_features, ''])} className="text-sm underline">+ Add Sub Feature</button></div></Section>
     <Section title="Marketing"><Field label="Headline" value={form.headline} onChange={v => set('headline', v)} /></Section>
     <Section title="Rating"><div className="grid grid-cols-2 gap-3"><Field label="Rating Count" type="number" value={form.rating.count} onChange={v => set('rating', { ...form.rating, count: v })} /><Field label="Rating Average" type="number" value={form.rating.average} onChange={v => set('rating', { ...form.rating, average: v })} /></div></Section>
