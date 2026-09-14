@@ -25,6 +25,9 @@ const emptyForm = (): ProductForm => ({
   main_features: [''], sub_features: [''], headline: '', rating: { count: '', average: '' }, reviews: { count: '' }, created_at: '', updated_at: '',
 });
 const str = (v: unknown) => v == null ? '' : String(v);
+const money = (v: unknown) => `RM ${Number(v || 0).toFixed(2)}`;
+const jsonObject = (v: unknown): Record<string, any> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, any> : {};
+const jsonArray = (v: unknown): any[] => Array.isArray(v) ? v : [];
 
 function Field({ label, type = 'text', value, onChange, readOnly = false, min, max, step }: { label: string; type?: string; value: string; onChange?: (v: string) => void; readOnly?: boolean; min?: string; max?: string; step?: string }) {
   const cls = 'mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-gray-400';
@@ -111,6 +114,30 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
   </div>;
 }
 
+function OrdersView({ orders, onStatusChange }: { orders: any[]; onStatusChange: (id: number | string, status: string) => Promise<void> }) {
+  return <section className="space-y-4">
+    <div className="flex items-end justify-between"><div><h2 className="text-lg font-semibold text-gray-900">Orders</h2><p className="text-sm text-gray-500">{orders.length} order{orders.length === 1 ? '' : 's'}</p></div></div>
+    {orders.length === 0 ? <Section title="Order List"><p className="text-sm text-gray-500">No orders.</p></Section> : orders.map(o => {
+      const address = jsonObject(o.address);
+      const store = jsonObject(o.store);
+      const shipping = jsonObject(o.shipping);
+      const voucher = jsonObject(o.voucher);
+      const payment = jsonObject(o.payment);
+      const items = jsonArray(o.items);
+      const deliveryType = str(shipping.delivery_type || shipping.type || (Object.keys(store).length ? 'store_pickup' : ''));
+      const destination = deliveryType === 'store_pickup' ? (store.address || store.name || 'Store pickup') : (address.address || [address.city, address.state, address.postcode].filter(Boolean).join(', ') || 'Address not provided');
+      return <article key={String(o.id)} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-gray-900">Order #{o.id}</p><p className="text-xs text-gray-500">{o.created_at ? new Date(o.created_at).toLocaleString() : 'Date unavailable'}</p><p className="mt-1 text-sm text-gray-600">{o.phone || 'Guest'}</p></div><select value={o.status || 'pending'} onChange={e => void onStatusChange(o.id, e.target.value)} className="shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm">{ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+        <div className="space-y-2"><p className="text-sm font-semibold text-gray-900">Items</p>{items.length ? items.map((item: any, index: number) => { const product = jsonObject(item.product); const title = item.title || product.title || item.name || item.item_group_id || `Item ${index + 1}`; const color = item.selectedColor || item.color || ''; const size = item.selectedSize || item.size || ''; const quantity = Number(item.quantity || 1); const price = item.sale_price ?? item.price ?? product.sale_price ?? product.price ?? 0; return <div key={`${String(o.id)}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"><div className="min-w-0"><p className="text-sm font-medium text-gray-900">{title}</p><p className="text-xs text-gray-500">{[color, size].filter(Boolean).join(' · ') || 'Variant unavailable'} · Qty {quantity}</p></div><p className="shrink-0 text-sm font-medium">{money(Number(price) * quantity)}</p></div>; }) : <p className="text-sm text-gray-500">No item details.</p>}</div>
+        <div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Fulfillment</p><p className="mt-1 text-sm font-medium">{deliveryType === 'store_pickup' ? 'Store Pickup' : 'Delivery'}</p><p className="mt-1 text-xs text-gray-500">{shipping.shipping_method || shipping.method || '—'}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Payment</p><p className="mt-1 text-sm font-medium">{payment.method || '—'}</p><p className="mt-1 text-xs text-gray-500">{payment.status || '—'}</p></div></div>
+        <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs text-gray-500">Destination</p><p className="mt-1 text-sm text-gray-800">{destination}</p></div>
+        {(voucher.code || Number(o.discount || voucher.discount || 0) > 0) && <div className="rounded-xl border border-gray-200 p-3"><p className="text-xs text-gray-500">Voucher</p><p className="mt-1 text-sm">{voucher.code || '—'} · Discount {money(o.discount || voucher.discount)}</p></div>}
+        <div className="border-t border-gray-100 pt-3 space-y-1 text-sm"><div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(o.subtotal)}</span></div><div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{money(o.shipping_fee || shipping.fee)}</span></div><div className="flex justify-between"><span className="text-gray-500">Discount</span><span>- {money(o.discount || voucher.discount)}</span></div><div className="flex justify-between pt-2 text-base font-semibold"><span>Total</span><span>{money(o.total)}</span></div></div>
+      </article>;
+    })}
+  </section>;
+}
+
 export function AdminPage() {
   const { user, loading, logout } = useAuth();
   const [view, setView] = useState<AdminView>('dashboard');
@@ -125,6 +152,7 @@ export function AdminPage() {
   const updateProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.updateProduct(value.item_group_id, value); setEditing(false); setProductCrudOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); } };
   const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setView('products'); };
   const deleteProduct = async (id: string) => { if (!window.confirm(`Delete ${id}?`)) return; try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } };
+  const updateOrderStatus = async (id: number | string, status: string) => { try { await adminApi.updateOrderStatus(id, status); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Status update failed'); } };
 
   const productPage = view === 'products';
   const productCrudMode = productPage && productCrudOpen;
@@ -137,7 +165,7 @@ export function AdminPage() {
       {view === 'dashboard' && <section className="space-y-4"><div className="grid grid-cols-2 gap-3"><Card label="Products" value={stats.products} /><Card label="Orders" value={stats.orders} /><Card label="Users" value={stats.users} /><Card label="Reviews" value={stats.reviews} /></div><Section title="Overview"><p className="text-sm text-gray-500">Manage products, orders, users and reviews from the admin views.</p></Section></section>}
       {view === 'products' && !productCrudOpen && <section className="space-y-4"><Section title="Product List"><div className="mb-3 flex justify-end"><button type="button" onClick={() => { setForm(emptyForm()); setEditing(false); setProductCrudOpen(true); }} className="rounded-xl bg-black px-3 py-2 text-sm text-white">+ New Product</button></div>{products.length === 0 ? <p className="text-sm text-gray-500">No products.</p> : <div className="grid grid-cols-2 gap-3">{products.map(p => { const imageUrl = p.variant_image?.[0]?.image_link; return <div key={p.item_group_id} className="overflow-hidden rounded-xl border border-gray-200 bg-white"><div className="aspect-square w-full overflow-hidden bg-gray-50">{imageUrl ? <img src={imageUrl} alt={p.title || p.item_group_id} className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No image</div>}</div><div className="p-3"><p className="font-medium">{p.title || p.item_group_id}</p><p className="text-xs text-gray-500">{p.item_group_id}</p><div className="mt-2 flex items-center justify-between gap-2"><button type="button" onClick={() => editProduct(p)} className="text-sm underline">Edit</button><button type="button" onClick={() => void deleteProduct(p.item_group_id)} className="text-sm text-red-600">Delete</button></div></div></div>; })}</div>}</Section></section>}
       {view === 'products' && productCrudOpen && <ProductForm form={form} setForm={setForm}/>} 
-      {view === 'orders' && <section className="space-y-3">{orders.map(o => <div key={String(o.id)} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-medium">Order #{o.id}</p><p className="text-sm text-gray-500">{o.phone || 'Guest'} · RM {Number(o.total || 0).toFixed(2)}</p></div><select value={o.status || 'pending'} onChange={async e => { try { await adminApi.updateOrderStatus(o.id, e.target.value); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Status update failed'); } }} className="rounded-lg border border-gray-200 px-2 py-1 text-sm">{ORDER_STATUSES.map(s => <option key={s}>{s}</option>)}</select></div></div>)}</section>}
+      {view === 'orders' && <OrdersView orders={orders} onStatusChange={updateOrderStatus} />}
       {view === 'users' && <section className="space-y-3">{users.map(u => <div key={u.phone} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4"><div><p className="font-medium">{u.name || u.phone}</p><p className="text-xs text-gray-500">{u.phone}</p></div><select value={u.role || 'customer'} onChange={async e => { try { await adminApi.updateUserRole(u.phone, e.target.value); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Role update failed'); } }} className="rounded-lg border border-gray-200 px-2 py-1 text-sm"><option value="customer">customer</option><option value="admin">admin</option></select></div>)}</section>}
       {view === 'reviews' && <section className="space-y-3">{reviews.map(r => <div key={r.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.name} · {r.rating}/5</p><p className="mt-1 text-sm text-gray-600">{r.comment}</p><p className="mt-1 text-xs text-gray-400">{r.item_group_id} · {r.phone}</p></div><button onClick={async () => { if (!window.confirm('Delete this review?')) return; try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } }} className="text-sm text-red-600">Delete</button></div></div>)}</section>}
     </div>
