@@ -13,7 +13,6 @@ import {
   ListInput,
   ListItem,
   Navbar,
-  Page,
   Toggle,
   Toolbar,
   ToolbarPane,
@@ -21,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext.tsx';
 import { adminApi } from '../services/adminApi.ts';
 import { AdminBottomNav } from '../components/AdminBottomNav.tsx';
+import { VariantSectionPage } from '../components/admin/VariantSectionPage.tsx';
 
 type AdminView = 'dashboard' | 'products' | 'orders' | 'users' | 'reviews';
 type ProductForm = {
@@ -97,15 +97,14 @@ function formToProduct(f: ProductForm) {
   };
 }
 
-function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Dispatch<React.SetStateAction<ProductForm>> }) {
+function ProductForm({ form, setForm, onOpenVariants }: { form: ProductForm; setForm: React.Dispatch<React.SetStateAction<ProductForm>>; onOpenVariants: () => void }) {
   const set = (key: keyof ProductForm, value: unknown) => setForm(prev => ({ ...prev, [key]: value }));
   const labels = Array.from({ length: 6 }, (_, i) => `custom_label_${i}` as keyof ProductForm);
-  const updateColor = (i: number, key: keyof ProductForm['variant_color'][number], value: string) => set('variant_color', form.variant_color.map((v, n) => n === i ? { ...v, [key]: value } : v));
   const updateSize = (i: number, key: keyof ProductForm['variant_size'][number], value: string | boolean) => set('variant_size', form.variant_size.map((v, n) => n === i ? { ...v, [key]: value } : v));
   const updateSizeDiscount = (i: number, value: string) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; const price = Number(v.price); const discount = Number(value); const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : v.sale_price; return { ...v, discount: value, sale_price: value === '' ? v.sale_price : String(salePrice) }; }));
   const toggleSizeDiscount = (i: number, active: boolean) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!active) return { ...v, discount_is_active: false, discount: '' }; const discount = v.discount === '' ? '10' : v.discount; const price = Number(v.price); const salePrice = Number.isFinite(price) ? Math.round((price - (price * Number(discount) / 100)) * 100) / 100 : v.sale_price; return { ...v, discount_is_active: true, discount, sale_price: String(salePrice) }; }));
   const updateSizePrice = (i: number, value: string) => set('variant_size', form.variant_size.map((v, n) => { if (n !== i) return v; if (!v.discount_is_active || v.discount === '') return { ...v, price: value }; const price = Number(value); const discount = Number(v.discount); const salePrice = Number.isFinite(price) && Number.isFinite(discount) ? Math.round((price - (price * discount / 100)) * 100) / 100 : ''; return { ...v, price: value, sale_price: String(salePrice) }; }));
-  const remove = (key: 'variant_color' | 'variant_size' | 'main_features' | 'sub_features', i: number) => set(key, form[key].filter((_, n) => n !== i));
+  const remove = (key: 'variant_size' | 'main_features' | 'sub_features', i: number) => set(key, form[key].filter((_, n) => n !== i));
 
   return <>
     <Section title="Basic Information">
@@ -123,25 +122,8 @@ function ProductForm({ form, setForm }: { form: ProductForm; setForm: React.Disp
       </List>
     </Section>
     <Section title="Custom Labels"><List inset strong>{labels.map(k => <Field key={String(k)} label={`Custom Label ${String(k).slice(-1)}`} value={String(form[k])} onChange={v => set(k, v)} />)}</List></Section>
-    <Section title="Color Variants">
-      {form.variant_color.map((v, i) => <List key={i} inset strong>
-        <Field label="Color" value={v.color} onChange={x => updateColor(i, 'color', x)} />
-        <Field label="Image Link" type="url" value={v.image_link} onChange={x => updateColor(i, 'image_link', x)} />
-        <Field label="Additional Image Link" type="url" value={v.additional_image_link} onChange={x => updateColor(i, 'additional_image_link', x)} />
-        <ListItem title="Remove variant" after={<Button clear disabled={form.variant_color.length === 1} onClick={() => remove('variant_color', i)}>Remove</Button>} />
-      </List>)}
-      <Button outline rounded onClick={() => set('variant_color', [...form.variant_color, { color: '', image_link: '', additional_image_link: '' }])}>Add Color Variant</Button>
-    </Section>
-    <Section title="Size & Price Variants">
-      {form.variant_size.map((v, i) => <List key={i} inset strong>
-        <Field label="Size" value={v.size} onChange={x => updateSize(i, 'size', x)} />
-        <Field label="Price" type="number" value={v.price} onChange={x => updateSizePrice(i, x)} />
-        <Field label="Sale Price" type="number" value={v.sale_price} onChange={x => updateSize(i, 'sale_price', x)} readOnly={v.discount_is_active} />
-        <ListItem title="Discount Active" after={<Toggle checked={v.discount_is_active} onChange={() => toggleSizeDiscount(i, !v.discount_is_active)} />} />
-        {v.discount_is_active && <Field label="Discount (%)" type="number" value={v.discount} min="0" max="100" step="0.01" onChange={x => updateSizeDiscount(i, x)} />}
-        <ListItem title="Remove variant" after={<Button clear disabled={form.variant_size.length === 1} onClick={() => remove('variant_size', i)}>Remove</Button>} />
-      </List>)}
-      <Button outline rounded onClick={() => set('variant_size', [...form.variant_size, emptySize()])}>Add Size Variant</Button>
+    <Section title="Variant Section">
+      <Button outline rounded onClick={onOpenVariants}>Open Variants</Button>
     </Section>
     <Section title="Features">
       <BlockTitle>Main Features</BlockTitle>
@@ -188,32 +170,33 @@ export function AdminPage() {
   const { user, loading, logout } = useAuth();
   const [view, setView] = useState<AdminView>('dashboard'); const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [products, setProducts] = useState<any[]>([]); const [orders, setOrders] = useState<any[]>([]); const [users, setUsers] = useState<any[]>([]); const [reviews, setReviews] = useState<any[]>([]);
-  const [form, setForm] = useState<ProductForm>(emptyForm()); const [editing, setEditing] = useState(false); const [productCrudOpen, setProductCrudOpen] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [form, setForm] = useState<ProductForm>(emptyForm()); const [editing, setEditing] = useState(false); const [productCrudOpen, setProductCrudOpen] = useState(false); const [variantSectionOpen, setVariantSectionOpen] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [deleteId, setDeleteId] = useState<string | null>(null);
   const load = useCallback(async () => { setBusy(true); setError(''); try { const [p, o, u, r] = await Promise.all([adminApi.products(), adminApi.orders(), adminApi.users(), adminApi.reviews()]); setProducts(Array.isArray(p.data) ? p.data : []); setOrders(Array.isArray(o.data) ? o.data : []); setUsers(Array.isArray(u.data) ? u.data : []); setReviews(Array.isArray(r.data) ? r.data : []); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load admin data'); } finally { setBusy(false); } }, []);
   useEffect(() => { if (user?.role === 'admin') void load(); }, [user?.role, load]);
   const stats = useMemo(() => ({ products: products.length, orders: orders.length, users: users.length, reviews: reviews.length }), [products, orders, users, reviews]);
   if (loading) return null; if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
-  const createProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.createProduct(value); setForm(emptyForm()); setEditing(false); setProductCrudOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Create failed'); } };
-  const updateProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.updateProduct(value.item_group_id, value); setEditing(false); setProductCrudOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); } };
-  const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setView('products'); };
+  const createProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.createProduct(value); setForm(emptyForm()); setEditing(false); setProductCrudOpen(false); setVariantSectionOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Create failed'); } };
+  const updateProduct = async () => { try { const value = formToProduct(form); if (!value.item_group_id) throw new Error('Item Group ID is required'); await adminApi.updateProduct(value.item_group_id, value); setEditing(false); setProductCrudOpen(false); setVariantSectionOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Update failed'); } };
+  const editProduct = (p: any) => { setForm(productToForm(p)); setEditing(true); setProductCrudOpen(true); setVariantSectionOpen(false); setView('products'); };
   const deleteProduct = async (id: string) => { try { await adminApi.deleteProduct(id); if (form.item_group_id === id) { setForm(emptyForm()); setEditing(false); } setDeleteId(null); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); setDeleteId(null); } };
   const updateOrderStatus = async (id: number | string, status: string) => { try { await adminApi.updateOrderStatus(id, status); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Status update failed'); } };
   const updateOrderPayment = async (id: number | string, payment: any) => { try { await adminApi.updateOrderPayment(id, payment); setOrders(prev => prev.map(order => String(order.id) === String(id) ? { ...order, payment } : order)); setSelectedOrder(prev => prev && String(prev.id) === String(id) ? { ...prev, payment } : prev); } catch (e) { setError(e instanceof Error ? e.message : 'Payment update failed'); } };
   const productCrudMode = view === 'products' && productCrudOpen;
-  const closeProductCrud = () => { setProductCrudOpen(false); setForm(emptyForm()); setEditing(false); };
+  const closeProductCrud = () => { setProductCrudOpen(false); setVariantSectionOpen(false); setForm(emptyForm()); setEditing(false); };
 
   return <KonstaProvider theme="ios"><App theme="ios" className="w-full max-w-[500px] mx-auto"><Page className="w-full min-h-full flex flex-col">
-    {!selectedOrder && <Navbar title={productCrudMode ? 'Product CRUD' : 'Admin'} subtitle={!productCrudMode ? 'Apple Store Malaysia' : undefined} right={!productCrudMode ? <><Button clear disabled={busy} onClick={() => void load()}>{busy ? 'Loading…' : 'Refresh'}</Button><Button clear onClick={logout}>Logout</Button></> : <Button clear onClick={closeProductCrud}>Close</Button>} />}
+    {!selectedOrder && <Navbar title={variantSectionOpen ? 'Variants' : productCrudMode ? 'Product CRUD' : 'Admin'} left={variantSectionOpen ? <Button clear onClick={() => setVariantSectionOpen(false)}>Back</Button> : undefined} subtitle={!productCrudMode && !variantSectionOpen ? 'Apple Store Malaysia' : undefined} right={!productCrudMode ? undefined : variantSectionOpen ? <Button clear onClick={closeProductCrud}>Close</Button> : <Button clear onClick={closeProductCrud}>Close</Button>} />}
     {error && <Block strong inset outline><p>{error}</p></Block>}
     <main className="w-full flex-1 min-h-0 overflow-y-auto">
       {view === 'dashboard' && !selectedOrder && <><BlockTitle>Dashboard</BlockTitle><List strong inset outline><ListItem title="Products" after={<Badge>{stats.products}</Badge>} /><ListItem title="Orders" after={<Badge>{stats.orders}</Badge>} /><ListItem title="Users" after={<Badge>{stats.users}</Badge>} /><ListItem title="Reviews" after={<Badge>{stats.reviews}</Badge>} /></List><Block strong inset><p>Manage products, orders, users and reviews from the admin views.</p></Block></>}
-      {view === 'products' && !productCrudOpen && <><BlockTitle>Products</BlockTitle><Block strong inset><Button rounded onClick={() => { setForm(emptyForm()); setEditing(false); setProductCrudOpen(true); }}>New Product</Button></Block><List strong inset outline>{products.length === 0 ? <ListItem title="No products." /> : products.map(p => <ListItem key={p.item_group_id} title={p.title || p.item_group_id} subtitle={p.item_group_id} text={p.variant_color?.[0]?.image_link ? 'Image available' : 'No image'} after={<><Button clear onClick={() => editProduct(p)}>Edit</Button><Button clear onClick={() => setDeleteId(p.item_group_id)}>Delete</Button></>} />)}</List></>}
-      {view === 'products' && productCrudOpen && <ProductForm form={form} setForm={setForm} />}
+      {view === 'products' && !productCrudOpen && <><BlockTitle>Products</BlockTitle><Block strong inset><Button rounded onClick={() => { setForm(emptyForm()); setEditing(false); setVariantSectionOpen(false); setProductCrudOpen(true); }}>New Product</Button></Block><List strong inset outline>{products.length === 0 ? <ListItem title="No products." /> : products.map(p => <ListItem key={p.item_group_id} title={p.title || p.item_group_id} subtitle={p.item_group_id} text={p.variant_color?.[0]?.image_link ? 'Image available' : 'No image'} after={<><Button clear onClick={() => editProduct(p)}>Edit</Button><Button clear onClick={() => setDeleteId(p.item_group_id)}>Delete</Button></>} />)}</List></>}
+      {view === 'products' && productCrudOpen && !variantSectionOpen && <ProductForm form={form} setForm={setForm} onOpenVariants={() => setVariantSectionOpen(true)} />}
+      {view === 'products' && productCrudOpen && variantSectionOpen && <VariantSectionPage form={form} setForm={setForm} />}
       {view === 'orders' && <OrdersView orders={orders} selectedOrder={selectedOrder} onSelectOrder={setSelectedOrder} onStatusChange={updateOrderStatus} onPaymentChange={updateOrderPayment} />}
       {view === 'users' && <Section title="Users"><List strong inset outline>{users.length === 0 ? <ListItem title="No users." /> : users.map(u => <React.Fragment key={u.phone}><ListItem title={u.name || u.phone} subtitle={u.phone} /><SelectField label="Role" value={u.role || 'customer'} options={['customer', 'admin']} onChange={async value => { try { await adminApi.updateUserRole(u.phone, value); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Role update failed'); } }} /></React.Fragment>)}</List></Section>}
       {view === 'reviews' && <Section title="Reviews"><List strong inset outline>{reviews.length === 0 ? <ListItem title="No reviews." /> : reviews.map(r => <ListItem key={r.id} title={`${r.name || r.phone || 'Guest'} · ${r.rating}/5`} subtitle={r.comment} text={`${r.item_group_id || ''}${r.phone ? ` · ${r.phone}` : ''}`} after={<Button clear onClick={async () => { try { await adminApi.deleteReview(r.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Delete failed'); } }}>Delete</Button>} />)}</List></Section>}
     </main>
-    {productCrudMode && <Toolbar><ToolbarPane><Button rounded style={{ flex: 1 }} onClick={() => void createProduct()} disabled={busy}>{editing ? 'Create New' : 'Create'}</Button><Button rounded outline style={{ flex: 1 }} onClick={() => void updateProduct()} disabled={busy || !editing}>Update</Button></ToolbarPane></Toolbar>}
+    {productCrudMode && !variantSectionOpen && <Toolbar><ToolbarPane><Button rounded style={{ flex: 1 }} onClick={() => void createProduct()} disabled={busy}>{editing ? 'Create New' : 'Create'}</Button><Button rounded outline style={{ flex: 1 }} onClick={() => void updateProduct()} disabled={busy || !editing}>Update</Button></ToolbarPane></Toolbar>}
     {!productCrudMode && !selectedOrder && <AdminBottomNav activeView={view} onViewChange={setView} />}
   </Page><Dialog opened={deleteId !== null} onBackdropClick={() => setDeleteId(null)} title="Delete Product" content={deleteId ? `Delete ${deleteId}?` : ''} buttons={<><DialogButton onClick={() => setDeleteId(null)}>Cancel</DialogButton><DialogButton strong onClick={() => deleteId && void deleteProduct(deleteId)}>Delete</DialogButton></>} /></App></KonstaProvider>;
 }
