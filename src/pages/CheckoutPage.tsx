@@ -14,6 +14,8 @@ const PAYMENT_OPTIONS: { id: PaymentMethod; title: string; description: string }
   { id: 'bank_transfer', title: 'Bank Transfer', description: 'Maybank2u / online bank' },
 ];
 
+const INSTAGRAM_DM_URL = 'https://ig.me/m/applestoremalaysiaa';
+
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,7 +69,11 @@ export const CheckoutPage: React.FC = () => {
     if (!phone) { alert('Phone is required to place an order'); return; }
     if (!hasAddress) { alert('Please complete your delivery address before placing the order'); return; }
     const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType: 'delivery', shippingMethod: activeShippingMethod, shippingAddress: { ...address, phone }, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days' };
-    try { const created = await addOrder(order); clearCart(); navigate(`/tracking/${created.id}`); } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
+    try {
+      await addOrder(order);
+      clearCart();
+      window.location.href = INSTAGRAM_DM_URL;
+    } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
   };
 
   if (cart.length === 0) return <StandalonePage title="Checkout"><div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto"><div className="w-16 h-16 bg-[#f5f5f7] rounded-full flex items-center justify-center text-gray-400 mb-4"><ShoppingBag size={28} /></div><h3 className="text-base font-semibold text-[#1d1d1f] mb-1">Your Bag is Empty</h3><p className="text-xs text-[#86868b] max-w-[240px] mb-6">Please add items to your bag before proceeding to checkout.</p><button type="button" onClick={() => navigate('/products')} className="px-5 py-2.5 bg-[#0071e3] text-white text-xs font-semibold rounded-full">Browse Apple Store</button></div></StandalonePage>;
