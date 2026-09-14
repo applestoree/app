@@ -17,6 +17,7 @@ export const adminApi = {
   deleteProduct: (id: string) => request<{ success: true; data?: any }>(`/products/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   orders: () => request<{ success: true; count?: number; data: any[] }>('/orders'),
   updateOrderStatus: (id: string | number, status: string) => request<{ success: true; data: any }>(`/orders/${encodeURIComponent(String(id))}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  updateOrderPayment: (id: string | number, payment: any) => request<{ success: true; data: any }>(`/orders/${encodeURIComponent(String(id))}/payment`, { method: 'PUT', body: JSON.stringify({ payment }) }),
   users: () => request<{ success: true; count?: number; data: any[] }>('/users'),
   updateUserRole: (phone: string, role: string) => request<{ success: true; data: any }>(`/users/${encodeURIComponent(phone)}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   reviews: () => request<{ success: true; count?: number; data: any[] }>('/reviews'),
