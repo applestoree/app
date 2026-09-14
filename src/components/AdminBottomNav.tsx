@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingBag, Users, MessageSquare } from 'lucide-react';
+import { Tabbar, TabbarLink, ToolbarPane } from 'konsta/react';
 
 type AdminView = 'dashboard' | 'products' | 'orders' | 'users' | 'reviews';
 
@@ -9,38 +9,29 @@ interface AdminBottomNavProps {
 }
 
 export const AdminBottomNav: React.FC<AdminBottomNavProps> = ({ activeView, onViewChange }) => {
-  const navItems = [
-    { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products' as const, label: 'Products', icon: Package },
-    { id: 'orders' as const, label: 'Orders', icon: ShoppingBag },
-    { id: 'users' as const, label: 'Users', icon: Users },
-    { id: 'reviews' as const, label: 'Reviews', icon: MessageSquare },
+  const navItems: { id: AdminView; label: string; icon: string }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: '⌂' },
+    { id: 'products', label: 'Products', icon: '▣' },
+    { id: 'orders', label: 'Orders', icon: '▤' },
+    { id: 'users', label: 'Users', icon: '♙' },
+    { id: 'reviews', label: 'Reviews', icon: '▢' },
   ];
 
   return (
-    <nav
-      id="admin-bottom-nav"
-      className="sticky bottom-0 z-30 w-full bg-white/95 backdrop-blur-md border-t border-black/5 py-2 px-1 flex items-center justify-around select-none"
-    >
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = activeView === item.id;
-        return (
-          <button
+    <Tabbar labels icons className="sticky bottom-0 z-30 w-full">
+      <ToolbarPane>
+        {navItems.map((item) => (
+          <TabbarLink
             key={item.id}
             id={`admin-nav-${item.id}`}
+            active={activeView === item.id}
             onClick={() => onViewChange(item.id)}
-            className={`flex min-w-0 flex-1 flex-col items-center gap-1 transition-all duration-150 active:scale-95 ${
-              isActive ? 'text-[#0071e3]' : 'text-[#86868b] hover:text-[#1d1d1f]'
-            }`}
-          >
-            <Icon size={19} strokeWidth={isActive ? 2.3 : 1.8} />
-            <span className={`truncate text-[10px] font-medium tracking-tight ${isActive ? 'font-semibold' : ''}`}>
-              {item.label}
-            </span>
-          </button>
-        );
-      })}
-    </nav>
+            icon={<span className="text-lg leading-none" aria-hidden="true">{item.icon}</span>}
+            label={item.label}
+            component="button"
+          />
+        ))}
+      </ToolbarPane>
+    </Tabbar>
   );
 };
