@@ -162,7 +162,7 @@ export function AdminPage() {
   const productPage = view === 'products'; const productCrudMode = productPage && productCrudOpen;
   const closeProductCrud = () => { setProductCrudOpen(false); setForm(emptyForm()); setEditing(false); };
 
-  return <KonstaProvider theme="ios" dark><Page className="w-full max-w-[500px] mx-auto min-h-[100dvh] !m-0 bg-gray-50 flex flex-col">
+  return <KonstaProvider theme="ios" dark><Page className="w-full max-w-[500px] mx-auto min-h-[100dvh] bg-gray-50 flex flex-col">
     {!selectedOrder && (productCrudMode ? <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><h1 className="text-lg font-semibold text-gray-900">Product CRUD</h1><KButton type="button" clear onClick={closeProductCrud} aria-label="Close Product CRUD">×</KButton></div></header> : <header className="w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3"><div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Admin</h1><p className="text-sm text-gray-500">Apple Store Malaysia</p></div><div className="flex items-center gap-2"><KButton type="button" outline rounded onClick={() => void load()} disabled={busy}>{busy ? 'Loading…' : 'Refresh'}</KButton><KButton type="button" outline rounded onClick={logout}>Logout</KButton></div></div></header>)}
     {error && <div className="w-full shrink-0 px-4 pt-3"><Block strong inset outline className="!my-0 text-sm text-red-700">{error}</Block></div>}
     <div className="w-full flex-1 min-h-0 overflow-y-auto p-4 pb-6">
