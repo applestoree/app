@@ -7,6 +7,12 @@ html, body, #root {
   padding: 0;
 }
 
+/* Standardize all form input borders to grey */
+input,
+textarea {
+  border-color: #d1d5db !important;
+}
+
 /* Apple-style minimalist scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
@@ -35,4 +41,3 @@ html, body, #root {
   height: 100% !important;
   z-index: 10;
 }
-
