@@ -16,6 +16,12 @@ const PAYMENT_OPTIONS: { id: PaymentMethod; title: string; description: string }
 
 const INSTAGRAM_DM_URL = 'https://ig.me/m/applestoremalaysiaa';
 
+const generateOrderId = () => {
+  const now = new Date();
+  const pad = (value: number, length = 2) => String(value).padStart(length, '0');
+  return `${String(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${pad(now.getMilliseconds(), 3).slice(0, 2)}`;
+};
+
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,6 +35,9 @@ export const CheckoutPage: React.FC = () => {
   const [voucherError, setVoucherError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('duitnow_qr');
   const [isPaymentSheetOpen, setIsPaymentSheetOpen] = useState(false);
+  const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState('');
+  const [pendingOrderMessage, setPendingOrderMessage] = useState('');
 
   useEffect(() => {
     if (location.state?.address) setAddress(location.state.address as ShippingAddress);
@@ -63,49 +72,87 @@ export const CheckoutPage: React.FC = () => {
     } else setVoucherError('Invalid promo voucher code.');
   };
 
-  const handlePlaceOrder = async () => {
+  const buildOrderMessage = (orderId: string) => {
+    const phone = address.phone.trim();
+    const orderItems = cart.map(item => {
+      const unitPrice = item.selectedSize.sale_price != null && Number(item.selectedSize.sale_price) > 0 ? Number(item.selectedSize.sale_price) : Number(item.selectedSize.price) || 0;
+      return `• ${item.product.title} — ${item.selectedSize.size} — RM${unitPrice.toLocaleString()} × ${item.quantity}`;
+    }).join('\n');
+
+    return [
+      `Order ID: ${orderId}`,
+      '',
+      'Items:',
+      orderItems,
+      '',
+      `Subtotal: RM${subtotal.toLocaleString()}`,
+      `Shipping Fee: RM${shippingFee.toLocaleString()}`,
+      `Discount: RM${discount.toLocaleString()}`,
+      `Total: RM${finalTotal.toLocaleString()}`,
+      '',
+      'Customer:',
+      `Name: ${address.fullName}`,
+      `Phone: ${phone}`,
+      '',
+      'Delivery Address:',
+      address.street,
+      `${address.city}, ${address.postcode}, ${address.state}`,
+      address.country,
+      '',
+      `Payment Method: ${selectedPayment.title}`,
+      `Delivery Method: ${shippingOptions.find(option => option.id === activeShippingMethod)?.title || 'Standard Delivery'}`,
+      '',
+      'Please confirm my order. Thank you!'
+    ].join('\n');
+  };
+
+  const handlePlaceOrder = () => {
     if (cart.length === 0) return;
     const phone = address.phone.trim();
     if (!phone) { alert('Phone is required to place an order'); return; }
     if (!hasAddress) { alert('Please complete your delivery address before placing the order'); return; }
-    const order: Order = { id: '', items: [...cart], subtotal, shippingFee, discount, total: finalTotal, paymentMethod, deliveryType: 'delivery', shippingMethod: activeShippingMethod, shippingAddress: { ...address, phone }, status: 'order_placed', createdAt: new Date().toISOString(), estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days' };
+
+    const orderId = generateOrderId();
+    setPendingOrderId(orderId);
+    setPendingOrderMessage(buildOrderMessage(orderId));
+    setIsOrderConfirmationOpen(true);
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!pendingOrderId || !pendingOrderMessage || cart.length === 0) return;
+
+    const phone = address.phone.trim();
+    const order: Order = {
+      id: pendingOrderId,
+      items: [...cart],
+      subtotal,
+      shippingFee,
+      discount,
+      total: finalTotal,
+      paymentMethod,
+      deliveryType: 'delivery',
+      shippingMethod: activeShippingMethod,
+      shippingAddress: { ...address, phone },
+      status: 'order_placed',
+      createdAt: new Date().toISOString(),
+      estimatedDelivery: shippingOptions.find(option => option.id === activeShippingMethod)?.eta || '1–3 business days'
+    };
+
     try {
-      const created = await addOrder(order);
-      const orderItems = cart.map(item => {
-        const unitPrice = item.selectedSize.sale_price != null && Number(item.selectedSize.sale_price) > 0 ? Number(item.selectedSize.sale_price) : Number(item.selectedSize.price) || 0;
-        return `• ${item.product.title} — ${item.selectedSize.size} — RM${unitPrice.toLocaleString()} × ${item.quantity}`;
-      }).join('\n');
-      const orderMessage = [
-        '🍎 APPLE STORE MALAYSIA — NEW ORDER',
-        '',
-        `Order ID: ${created.id}`,
-        '',
-        'Items:',
-        orderItems,
-        '',
-        `Subtotal: RM${subtotal.toLocaleString()}`,
-        `Shipping Fee: RM${shippingFee.toLocaleString()}`,
-        `Discount: RM${discount.toLocaleString()}`,
-        `Total: RM${finalTotal.toLocaleString()}`,
-        '',
-        'Customer:',
-        `Name: ${address.fullName}`,
-        `Phone: ${phone}`,
-        '',
-        'Delivery Address:',
-        address.street,
-        `${address.city}, ${address.postcode}, ${address.state}`,
-        address.country,
-        '',
-        `Payment Method: ${selectedPayment.title}`,
-        `Delivery Method: ${shippingOptions.find(option => option.id === activeShippingMethod)?.title || 'Standard Delivery'}`,
-        '',
-        'Please confirm my order. Thank you!'
-      ].join('\n');
-      await navigator.clipboard.writeText(orderMessage);
+      await addOrder(order);
+      await navigator.clipboard.writeText(pendingOrderMessage);
+      setIsOrderConfirmationOpen(false);
       clearCart();
       window.location.href = INSTAGRAM_DM_URL;
-    } catch (error) { alert(error instanceof Error ? error.message : 'Unable to place order'); }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Unable to place order');
+    }
+  };
+
+  const handleCancelOrder = () => {
+    setIsOrderConfirmationOpen(false);
+    setPendingOrderId('');
+    setPendingOrderMessage('');
   };
 
   if (cart.length === 0) return <StandalonePage title="Checkout"><div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto"><div className="w-16 h-16 bg-[#f5f5f7] rounded-full flex items-center justify-center text-gray-400 mb-4"><ShoppingBag size={28} /></div><h3 className="text-base font-semibold text-[#1d1d1f] mb-1">Your Bag is Empty</h3><p className="text-xs text-[#86868b] max-w-[240px] mb-6">Please add items to your bag before proceeding to checkout.</p><button type="button" onClick={() => navigate('/products')} className="px-5 py-2.5 bg-[#0071e3] text-white text-xs font-semibold rounded-full">Browse Apple Store</button></div></StandalonePage>;
@@ -138,5 +185,21 @@ export const CheckoutPage: React.FC = () => {
     <BottomSheet isOpen={isPaymentSheetOpen} onClose={() => setIsPaymentSheetOpen(false)} title="Payment Method" id="payment-method-bottomsheet">
       <div className="space-y-2">{PAYMENT_OPTIONS.map(option => <button key={option.id} type="button" onClick={() => { setPaymentMethod(option.id); setIsPaymentSheetOpen(false); }} className={`w-full p-4 rounded-2xl border text-left flex items-center gap-3 transition-colors ${paymentMethod === option.id ? 'border-[#0071e3] bg-blue-50' : 'border-gray-200 bg-white'}`}><div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${paymentMethod === option.id ? 'bg-white text-[#0071e3]' : 'bg-[#f5f5f7] text-[#424245]'}`}><CreditCard size={18} /></div><div className="min-w-0 flex-1"><div className="text-sm font-semibold text-[#1d1d1f]">{option.title}</div><div className="text-[10px] text-[#86868b] mt-0.5">{option.description}</div></div>{paymentMethod === option.id && <Check size={18} className="text-[#0071e3] shrink-0" />}</button>)}</div>
     </BottomSheet>
+
+    {isOrderConfirmationOpen && <div id="order-confirmation-popup" className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="order-confirmation-title">
+      <div className="w-full max-w-[460px] max-h-[85dvh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-black/5 shrink-0">
+          <div id="order-confirmation-title" className="text-sm font-semibold text-[#1d1d1f]">Confirm Order</div>
+          <div className="text-[10px] text-[#86868b] mt-1">Review the exact message that will be copied to Instagram.</div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-[#f5f5f7]">
+          <pre className="whitespace-pre-wrap break-words text-xs leading-5 text-[#1d1d1f] font-sans">{pendingOrderMessage}</pre>
+        </div>
+        <div className="p-3 border-t border-black/5 flex gap-2 shrink-0">
+          <button type="button" onClick={handleCancelOrder} className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-[#1d1d1f]">Cancel</button>
+          <button type="button" onClick={handleConfirmOrder} className="flex-1 px-4 py-3 rounded-xl bg-[#0071e3] text-white text-xs font-semibold">Confirm & Open Instagram</button>
+        </div>
+      </div>
+    </div>}
   </StandalonePage>;
 };
